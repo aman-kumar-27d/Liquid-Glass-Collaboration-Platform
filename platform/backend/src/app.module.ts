@@ -14,7 +14,9 @@ import { AuthModule } from './modules/auth/auth.module';
 import { CompaniesModule } from './modules/companies/companies.module';
 import { MessagesModule } from './modules/messages/messages.module';
 import { RoomsModule } from './modules/rooms/rooms.module';
+import { ScreenModule } from './modules/screen/screen.module';
 import { UsersModule } from './modules/users/users.module';
+import { VideoModule } from './modules/video/video.module';
 import { FilesModule } from './modules/files/files.module';
 
 @Module({
@@ -36,7 +38,9 @@ import { FilesModule } from './modules/files/files.module';
     UsersModule,
     RoomsModule,
     MessagesModule,
-    FilesModule
+    FilesModule,
+    VideoModule,
+    ScreenModule
   ]
 })
 export class AppModule implements NestModule {

@@ -39,6 +39,13 @@ This uses `sqljs` with auto-save to `platform/backend/.data/dev.sqlite`.
 - `STORAGE_DRIVER=local` uses the local filesystem in `platform/backend/uploads`
 - `STORAGE_DRIVER=minio` uses the configured MinIO server and bucket
 
+## Current Verification Baseline
+
+- backend lint/build passes
+- frontend build passes
+- mobile typecheck passes
+- offline backend boot passes with `sqljs`
+
 ## Production Follow-Up
 
 - add container images for backend and frontend

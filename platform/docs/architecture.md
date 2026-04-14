@@ -13,6 +13,8 @@
 - `companies`: tenant records and company profile
 - `users`: tenant-scoped user listing and lifecycle
 - `files`: local or MinIO-backed upload/download metadata and storage abstraction baseline
+- `video`: call lifecycle, participants, and WebRTC signaling baseline
+- `screen`: active screen-share state over call lifecycle
 - future modules reserved for rooms, messages, files, video, screen, analytics, subscriptions, admin, and master admin
 
 ## Tenant Strategy

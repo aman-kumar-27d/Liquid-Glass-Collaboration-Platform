@@ -39,9 +39,15 @@
 - `POST /api/v1/files/upload`
 - `GET /api/v1/files/:id`
 - `GET /api/v1/files/:id/download`
+- `POST /api/v1/calls/start`
+- `POST /api/v1/calls/join`
+- `POST /api/v1/calls/:id/leave`
+- `POST /api/v1/calls/:id/end`
+- `GET /api/v1/calls/rooms/:roomId/active`
+- `POST /api/v1/screen-share/start`
+- `POST /api/v1/screen-share/:callId/stop`
 
 ## Next Endpoints
 
 - P2P large file transfer signaling
-- call and screen-share signaling
 - subscription and admin surfaces

@@ -13,13 +13,15 @@ Implemented events:
 - `typing.started`
 - `typing.stopped`
 - `presence.changed`
-
-Reserved next events:
-
+- `call.join`
+- `call.leave`
 - `call.offer`
 - `call.answer`
 - `call.candidate`
-- `call.join`
-- `call.leave`
+- `screen.start`
+- `screen.stop`
+
+Reserved next events:
+
 - `file-transfer.signal`
 - `notification.pushed`

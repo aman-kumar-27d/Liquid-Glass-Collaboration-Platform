@@ -15,6 +15,8 @@ import { UserRole } from '../../common/enums/user-role.enum';
 import { CreateMessageDto } from './messages.dto';
 import { MessagesService } from './messages.service';
 import { RoomsService } from '../rooms/rooms.service';
+import { VideoService } from '../video/video.service';
+import { ScreenService } from '../screen/screen.service';
 
 interface SocketUser {
   sub: string;
@@ -38,7 +40,9 @@ export class MessagesGateway implements OnGatewayConnection, OnGatewayDisconnect
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
     private readonly roomsService: RoomsService,
-    private readonly messagesService: MessagesService
+    private readonly messagesService: MessagesService,
+    private readonly videoService: VideoService,
+    private readonly screenService: ScreenService
   ) {}
 
   async handleConnection(client: Socket) {
@@ -99,6 +103,88 @@ export class MessagesGateway implements OnGatewayConnection, OnGatewayDisconnect
     const user = this.getSocketUser(client);
     const result = await this.messagesService.create(payload, user);
     this.server.to(payload.roomId).emit('message.created', result.data);
+    return result;
+  }
+
+  @SubscribeMessage('call.join')
+  async joinCall(@MessageBody('callId') callId: string, @ConnectedSocket() client: Socket) {
+    const user = this.getSocketUser(client);
+    const result = await this.videoService.joinCall({ callId }, user);
+    client.join(`call:${callId}`);
+    this.server.to(`call:${callId}`).emit('call.joined', result.data);
+    return result;
+  }
+
+  @SubscribeMessage('call.leave')
+  async leaveCall(@MessageBody('callId') callId: string, @ConnectedSocket() client: Socket) {
+    const user = this.getSocketUser(client);
+    const result = await this.videoService.leaveCall(callId, user);
+    client.leave(`call:${callId}`);
+    this.server.to(`call:${callId}`).emit('call.left', result.data);
+    return result;
+  }
+
+  @SubscribeMessage('call.offer')
+  async relayOffer(
+    @MessageBody() payload: { callId: string; targetUserId: string; sdp: unknown },
+    @ConnectedSocket() client: Socket
+  ) {
+    const user = this.getSocketUser(client);
+    await this.videoService.getCall(payload.callId, user);
+    client.to(`call:${payload.callId}`).emit('call.offer', {
+      callId: payload.callId,
+      fromUserId: user.sub,
+      targetUserId: payload.targetUserId,
+      sdp: payload.sdp
+    });
+  }
+
+  @SubscribeMessage('call.answer')
+  async relayAnswer(
+    @MessageBody() payload: { callId: string; targetUserId: string; sdp: unknown },
+    @ConnectedSocket() client: Socket
+  ) {
+    const user = this.getSocketUser(client);
+    await this.videoService.getCall(payload.callId, user);
+    client.to(`call:${payload.callId}`).emit('call.answer', {
+      callId: payload.callId,
+      fromUserId: user.sub,
+      targetUserId: payload.targetUserId,
+      sdp: payload.sdp
+    });
+  }
+
+  @SubscribeMessage('call.candidate')
+  async relayCandidate(
+    @MessageBody() payload: { callId: string; targetUserId: string; candidate: unknown },
+    @ConnectedSocket() client: Socket
+  ) {
+    const user = this.getSocketUser(client);
+    await this.videoService.getCall(payload.callId, user);
+    client.to(`call:${payload.callId}`).emit('call.candidate', {
+      callId: payload.callId,
+      fromUserId: user.sub,
+      targetUserId: payload.targetUserId,
+      candidate: payload.candidate
+    });
+  }
+
+  @SubscribeMessage('screen.start')
+  async startScreen(
+    @MessageBody('callId') callId: string,
+    @ConnectedSocket() client: Socket
+  ) {
+    const user = this.getSocketUser(client);
+    const result = await this.screenService.startShare({ callId }, user);
+    this.server.to(`call:${callId}`).emit('screen.started', result.data);
+    return result;
+  }
+
+  @SubscribeMessage('screen.stop')
+  async stopScreen(@MessageBody('callId') callId: string, @ConnectedSocket() client: Socket) {
+    const user = this.getSocketUser(client);
+    const result = await this.screenService.stopShare(callId, user);
+    this.server.to(`call:${callId}`).emit('screen.stopped', result.data);
     return result;
   }
 

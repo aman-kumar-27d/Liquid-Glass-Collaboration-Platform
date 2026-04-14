@@ -43,9 +43,18 @@ The repository currently includes:
 
 - workspace scaffolding
 - backend foundation with auth, company, user, and health modules
-- database entities for core tenant and auth records
+- rooms, messaging, file storage, and call/screen-sharing backend baselines
+- database entities and migrations through current Phase 5 baseline
 - frontend liquid-glass shell
 - mobile scaffold
 - infra and engineering docs
+- offline local DB mode for temporary development
 
-Later phases remain to be implemented incrementally on top of this baseline.
+Still pending:
+
+- P2P large-file transfer
+- admin/master/subscription features
+- analytics/jobs
+- real frontend feature implementation
+- real mobile feature implementation
+- production hardening and broader test coverage
