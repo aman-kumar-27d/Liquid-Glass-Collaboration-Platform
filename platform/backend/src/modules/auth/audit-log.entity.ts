@@ -16,9 +16,9 @@ export class AuditLog extends BaseEntity {
   @Column({ length: 120 })
   resource!: string;
 
-  @Column({ name: 'resource_id', length: 120, nullable: true })
+  @Column({ name: 'resource_id', type: 'varchar', length: 120, nullable: true })
   resourceId?: string | null;
 
-  @Column({ type: 'jsonb', nullable: true })
+  @Column({ type: 'simple-json', nullable: true })
   metadata?: Record<string, unknown> | null;
 }

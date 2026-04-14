@@ -25,6 +25,15 @@ npm run dev:backend
 npm run dev:frontend
 ```
 
+## Offline Local DB
+
+For temporary local testing without Postgres:
+
+1. Copy `platform/.env.offline.example` to `platform/.env`
+2. Run the backend normally
+
+This uses `sqljs` with auto-save to `platform/backend/.data/dev.sqlite`.
+
 ## Production Follow-Up
 
 - add container images for backend and frontend

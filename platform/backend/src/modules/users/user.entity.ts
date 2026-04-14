@@ -23,10 +23,10 @@ export class User extends BaseEntity {
   @Column({ name: 'password_hash', length: 255 })
   passwordHash!: string;
 
-  @Column({ type: 'enum', enum: UserRole, default: UserRole.USER })
+  @Column({ type: 'simple-enum', enum: UserRole, default: UserRole.USER })
   role!: UserRole;
 
-  @Column({ name: 'avatar_url', length: 255, nullable: true })
+  @Column({ name: 'avatar_url', type: 'varchar', length: 255, nullable: true })
   avatarUrl?: string | null;
 
   @Column({ name: 'is_active', default: true })

@@ -14,6 +14,7 @@ This repository contains the initial implementation scaffold for the Liquid Glas
 ## Quick Start
 
 1. Copy `platform/.env.example` to `platform/.env`.
+   For offline local testing without Postgres, use `platform/.env.offline.example` instead.
 2. Start infrastructure with Docker Compose from `platform/infra/docker-compose.yml`.
 3. Install workspace dependencies from `platform/` with `npm install`.
 4. Run the backend with `npm run dev:backend`.

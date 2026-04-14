@@ -13,15 +13,15 @@ export class Session extends BaseEntity {
   @Column({ name: 'refresh_token_hash', length: 255 })
   refreshTokenHash!: string;
 
-  @Column({ name: 'user_agent', length: 255, nullable: true })
+  @Column({ name: 'user_agent', type: 'varchar', length: 255, nullable: true })
   userAgent?: string | null;
 
-  @Column({ name: 'ip_address', length: 64, nullable: true })
+  @Column({ name: 'ip_address', type: 'varchar', length: 64, nullable: true })
   ipAddress?: string | null;
 
-  @Column({ name: 'expires_at', type: 'timestamptz' })
+  @Column({ name: 'expires_at', type: 'datetime' })
   expiresAt!: Date;
 
-  @Column({ name: 'revoked_at', type: 'timestamptz', nullable: true })
+  @Column({ name: 'revoked_at', type: 'datetime', nullable: true })
   revokedAt?: Date | null;
 }

@@ -10,6 +10,7 @@
 - `room_members`
 - `messages`
 - `message_reactions`
+- `files`
 
 ## Current Rules
 
@@ -21,7 +22,6 @@
 
 ## Deferred Entities
 
-- files
 - file_transfers
 - video_calls
 - screen_shares

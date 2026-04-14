@@ -18,7 +18,7 @@ export class Room extends BaseEntity {
   @Column({ length: 160 })
   name!: string;
 
-  @Column({ type: 'enum', enum: RoomType })
+  @Column({ type: 'simple-enum', enum: RoomType })
   type!: RoomType;
 
   @Column({ name: 'created_by', type: 'uuid' })

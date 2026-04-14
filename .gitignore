@@ -5,6 +5,7 @@ coverage/
 .turbo/
 .expo/
 .cache/
+*.tsbuildinfo
 *.log
 .env
 .env.local
@@ -12,3 +13,4 @@ coverage/
 .env.test.local
 .env.production.local
 platform/backend/uploads/
+platform/backend/.data/

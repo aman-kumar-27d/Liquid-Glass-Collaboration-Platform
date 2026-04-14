@@ -21,9 +21,9 @@ export class RoomMember extends BaseEntity {
   @JoinColumn({ name: 'user_id' })
   user!: User;
 
-  @Column({ type: 'enum', enum: RoomMemberRole, default: RoomMemberRole.MEMBER })
+  @Column({ type: 'simple-enum', enum: RoomMemberRole, default: RoomMemberRole.MEMBER })
   role!: RoomMemberRole;
 
-  @Column({ name: 'joined_at', type: 'timestamptz', default: () => 'CURRENT_TIMESTAMP' })
+  @Column({ name: 'joined_at', type: 'datetime', default: () => 'CURRENT_TIMESTAMP' })
   joinedAt!: Date;
 }

@@ -35,7 +35,7 @@ export class Message extends BaseEntity {
   @Column({ type: 'text' })
   content!: string;
 
-  @Column({ type: 'enum', enum: MessageType, default: MessageType.TEXT })
+  @Column({ type: 'simple-enum', enum: MessageType, default: MessageType.TEXT })
   type!: MessageType;
 
   @Column({ name: 'parent_message_id', type: 'uuid', nullable: true })
@@ -45,10 +45,10 @@ export class Message extends BaseEntity {
   @JoinColumn({ name: 'parent_message_id' })
   parentMessage?: Message | null;
 
-  @Column({ name: 'edited_at', type: 'timestamptz', nullable: true })
+  @Column({ name: 'edited_at', type: 'datetime', nullable: true })
   editedAt?: Date | null;
 
-  @Column({ type: 'jsonb', nullable: true })
+  @Column({ type: 'simple-json', nullable: true })
   metadata?: Record<string, unknown> | null;
 
   @OneToMany(() => MessageReaction, (reaction) => reaction.message)

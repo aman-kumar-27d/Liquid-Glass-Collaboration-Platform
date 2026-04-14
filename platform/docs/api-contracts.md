@@ -36,9 +36,11 @@
 - `PATCH /api/v1/messages/:id`
 - `DELETE /api/v1/messages/:id`
 - `POST /api/v1/messages/:id/reactions`
+- `POST /api/v1/files/upload`
+- `GET /api/v1/files/:id`
+- `GET /api/v1/files/:id/download`
 
 ## Next Endpoints
 
-- file upload lifecycle
 - call and screen-share signaling
 - subscription and admin surfaces

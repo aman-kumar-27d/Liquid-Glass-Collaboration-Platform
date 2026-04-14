@@ -12,3 +12,4 @@ Initial implementation intentionally ships without generated migrations because 
 Implemented:
 
 - `1713112200000-InitialFoundation.ts` for the current Phase 0-3 schema baseline
+- `1713115800000-AddFilesPhase4.ts` for the Phase 4 file metadata baseline
