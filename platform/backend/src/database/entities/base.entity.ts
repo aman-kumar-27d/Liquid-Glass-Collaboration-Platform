@@ -5,7 +5,7 @@ import {
   PrimaryColumn,
   UpdateDateColumn
 } from 'typeorm';
-import { v7 as uuid } from 'uuid';
+import { randomUUID } from 'node:crypto';
 
 export abstract class BaseEntity {
   @PrimaryColumn('uuid')
@@ -22,6 +22,6 @@ export abstract class BaseEntity {
 
   @BeforeInsert()
   assignId() {
-    this.id = this.id ?? uuid();
+    this.id = this.id ?? randomUUID();
   }
 }
