@@ -8,6 +8,7 @@ import {
 } from 'typeorm';
 import { MessageType } from '../../common/enums/message-type.enum';
 import { BaseEntity } from '../../database/entities/base.entity';
+import { StoredFile } from '../files/file.entity';
 import { Room } from '../rooms/room.entity';
 import { User } from '../users/user.entity';
 import { MessageReaction } from './message-reaction.entity';
@@ -53,4 +54,7 @@ export class Message extends BaseEntity {
 
   @OneToMany(() => MessageReaction, (reaction) => reaction.message)
   reactions!: MessageReaction[];
+
+  @OneToMany(() => StoredFile, (file) => file.message)
+  files!: StoredFile[];
 }

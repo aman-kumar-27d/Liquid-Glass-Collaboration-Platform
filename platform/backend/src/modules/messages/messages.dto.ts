@@ -1,4 +1,15 @@
-import { IsEnum, IsInt, IsOptional, IsString, IsUUID, Length, Max, Min } from 'class-validator';
+import {
+  ArrayUnique,
+  IsArray,
+  IsEnum,
+  IsInt,
+  IsOptional,
+  IsString,
+  IsUUID,
+  Length,
+  Max,
+  Min
+} from 'class-validator';
 import { Type } from 'class-transformer';
 import { MessageType } from '../../common/enums/message-type.enum';
 
@@ -29,6 +40,12 @@ export class CreateMessageDto {
   @IsOptional()
   @IsUUID()
   parentMessageId?: string;
+
+  @IsOptional()
+  @IsArray()
+  @ArrayUnique()
+  @IsUUID('4', { each: true })
+  fileIds?: string[];
 }
 
 export class UpdateMessageDto {

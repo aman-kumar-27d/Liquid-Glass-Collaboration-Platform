@@ -12,7 +12,7 @@
 - `auth`: authentication, session lifecycle, audit logging for auth events
 - `companies`: tenant records and company profile
 - `users`: tenant-scoped user listing and lifecycle
-- `files`: local file upload/download metadata and storage abstraction baseline
+- `files`: local or MinIO-backed upload/download metadata and storage abstraction baseline
 - future modules reserved for rooms, messages, files, video, screen, analytics, subscriptions, admin, and master admin
 
 ## Tenant Strategy

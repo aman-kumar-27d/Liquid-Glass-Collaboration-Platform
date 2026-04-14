@@ -42,5 +42,6 @@
 
 ## Next Endpoints
 
+- P2P large file transfer signaling
 - call and screen-share signaling
 - subscription and admin surfaces

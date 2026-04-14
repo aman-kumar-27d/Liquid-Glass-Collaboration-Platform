@@ -5,12 +5,10 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
-import { promises as fs } from 'fs';
-import path from 'path';
-import { randomUUID } from 'crypto';
 import { Repository } from 'typeorm';
 import { Message } from '../messages/message.entity';
 import { RoomsService } from '../rooms/rooms.service';
+import { StorageService } from '../../shared/storage/storage.service';
 import { UploadFileDto } from './files.dto';
 import { StoredFile } from './file.entity';
 
@@ -28,7 +26,8 @@ export class FilesService {
     @InjectRepository(Message)
     private readonly messagesRepository: Repository<Message>,
     private readonly roomsService: RoomsService,
-    private readonly configService: ConfigService
+    private readonly configService: ConfigService,
+    private readonly storageService: StorageService
   ) {}
 
   async upload(file: Express.Multer.File, dto: UploadFileDto, actor: AuthUser) {
@@ -52,36 +51,32 @@ export class FilesService {
       }
     }
 
-    const storageDriver = this.configService.get<string>('storage.driver') ?? 'local';
-    if (storageDriver !== 'local') {
-      throw new ForbiddenException('Only local storage is implemented in this phase');
-    }
+    this.ensureAllowedFile(file);
+    const storedObject = await this.storageService.storeFile({
+      companyId: actor.companyId,
+      fileName: file.originalname,
+      contentType: file.mimetype || 'application/octet-stream',
+      buffer: file.buffer
+    });
 
-    const uploadsRoot = path.resolve(
-      process.cwd(),
-      this.configService.get<string>('storage.localUploadDir') ?? './backend/uploads'
-    );
-    const companyDir = path.join(uploadsRoot, actor.companyId);
-    await fs.mkdir(companyDir, { recursive: true });
-
-    const safeName = `${randomUUID()}-${sanitizeName(file.originalname)}`;
-    const absolutePath = path.join(companyDir, safeName);
-    await fs.writeFile(absolutePath, file.buffer);
-
-    const storedFile = await this.filesRepository.save(
+    let storedFile = await this.filesRepository.save(
       this.filesRepository.create({
         companyId: actor.companyId,
         roomId: dto.roomId,
         messageId: dto.messageId ?? null,
         uploadedBy: actor.sub,
         originalName: file.originalname,
-        storedName: safeName,
+        storedName: storedObject.storedName,
+        fileUrl: null,
         mimeType: file.mimetype || 'application/octet-stream',
         size: file.size,
-        storageDriver,
-        storagePath: absolutePath
+        storageDriver: storedObject.driver,
+        storagePath: storedObject.storagePath
       })
     );
+
+    storedFile.fileUrl = this.buildFileUrl(storedFile.id);
+    storedFile = await this.filesRepository.save(storedFile);
 
     return { success: true, data: storedFile, error: null, meta: null };
   }
@@ -109,8 +104,54 @@ export class FilesService {
     await this.roomsService.ensureMembership(storedFile.roomId, actor as any);
     return storedFile;
   }
-}
 
-function sanitizeName(fileName: string) {
-  return fileName.replace(/[^a-zA-Z0-9._-]/g, '_');
+  async attachFilesToMessage(
+    fileIds: string[] | undefined,
+    roomId: string,
+    messageId: string,
+    actor: AuthUser
+  ) {
+    if (!fileIds?.length) {
+      return [];
+    }
+
+    const files = await this.filesRepository.find({
+      where: fileIds.map((id) => ({
+        id,
+        companyId: actor.companyId,
+        roomId
+      }))
+    });
+
+    if (files.length !== fileIds.length) {
+      throw new NotFoundException('One or more files were not found');
+    }
+
+    const invalid = files.find((file) => file.messageId && file.messageId !== messageId);
+    if (invalid) {
+      throw new ForbiddenException('A file is already attached to another message');
+    }
+
+    for (const file of files) {
+      file.messageId = messageId;
+    }
+
+    return this.filesRepository.save(files);
+  }
+
+  async openDownload(storedFile: StoredFile) {
+    return this.storageService.openDownload(storedFile.storagePath);
+  }
+
+  private ensureAllowedFile(file: Express.Multer.File) {
+    const maxSize = 10 * 1024 * 1024;
+    if (file.size > maxSize) {
+      throw new ForbiddenException('File exceeds the temporary upload limit');
+    }
+  }
+
+  private buildFileUrl(fileId: string) {
+    const frontendUrl = this.configService.get<string>('app.frontendUrl') ?? 'http://localhost:3000';
+    return `${frontendUrl.replace(/\/$/, '')}/api/v1/files/${encodeURIComponent(fileId)}/download`;
+  }
 }

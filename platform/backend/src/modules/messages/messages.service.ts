@@ -6,6 +6,7 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { IsNull, Repository } from 'typeorm';
 import { UserRole } from '../../common/enums/user-role.enum';
+import { StoredFile } from '../files/file.entity';
 import { RoomsService } from '../rooms/rooms.service';
 import { CreateMessageDto, ListMessagesQueryDto, ReactToMessageDto, UpdateMessageDto } from './messages.dto';
 import { MessageReaction } from './message-reaction.entity';
@@ -24,6 +25,8 @@ export class MessagesService {
     private readonly messagesRepository: Repository<Message>,
     @InjectRepository(MessageReaction)
     private readonly reactionsRepository: Repository<MessageReaction>,
+    @InjectRepository(StoredFile)
+    private readonly filesRepository: Repository<StoredFile>,
     private readonly roomsService: RoomsService
   ) {}
 
@@ -36,7 +39,7 @@ export class MessagesService {
         companyId: actor.companyId,
         deletedAt: IsNull()
       },
-      relations: { reactions: true },
+      relations: { reactions: true, files: true },
       order: { createdAt: 'DESC' },
       take: query.limit ?? 25
     });
@@ -77,9 +80,35 @@ export class MessagesService {
       })
     );
 
+    if (dto.fileIds?.length) {
+      const files = await this.filesRepository.find({
+        where: dto.fileIds.map((id) => ({
+          id,
+          companyId: actor.companyId,
+          roomId: dto.roomId
+        }))
+      });
+
+      if (files.length !== dto.fileIds.length) {
+        throw new NotFoundException('One or more files were not found');
+      }
+
+      const alreadyAttached = files.find((file) => file.messageId);
+      if (alreadyAttached) {
+        throw new ForbiddenException('One or more files are already attached to a message');
+      }
+
+      for (const file of files) {
+        file.messageId = message.id;
+        file.fileUrl = `/api/v1/files/${file.id}/download`;
+      }
+
+      await this.filesRepository.save(files);
+    }
+
     const fullMessage = await this.messagesRepository.findOneOrFail({
       where: { id: message.id },
-      relations: { reactions: true }
+      relations: { reactions: true, files: true }
     });
 
     return { success: true, data: fullMessage, error: null, meta: null };

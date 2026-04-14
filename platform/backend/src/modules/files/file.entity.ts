@@ -37,6 +37,9 @@ export class StoredFile extends BaseEntity {
   @Column({ name: 'stored_name', length: 255 })
   storedName!: string;
 
+  @Column({ name: 'file_url', type: 'varchar', length: 500, nullable: true })
+  fileUrl?: string | null;
+
   @Column({ name: 'mime_type', length: 160 })
   mimeType!: string;
 

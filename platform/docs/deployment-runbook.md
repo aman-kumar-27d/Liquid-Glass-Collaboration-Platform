@@ -34,6 +34,11 @@ For temporary local testing without Postgres:
 
 This uses `sqljs` with auto-save to `platform/backend/.data/dev.sqlite`.
 
+## File Storage Modes
+
+- `STORAGE_DRIVER=local` uses the local filesystem in `platform/backend/uploads`
+- `STORAGE_DRIVER=minio` uses the configured MinIO server and bucket
+
 ## Production Follow-Up
 
 - add container images for backend and frontend

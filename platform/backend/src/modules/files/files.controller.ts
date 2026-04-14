@@ -51,6 +51,17 @@ export class FilesController {
     @Res() response: Response
   ) {
     const storedFile = await this.filesService.resolveDownload(id, user);
-    response.download(storedFile.storagePath, storedFile.originalName);
+    const download = await this.filesService.openDownload(storedFile);
+
+    if (download.mode === 'local') {
+      return response.download(download.path, storedFile.originalName);
+    }
+
+    response.setHeader('Content-Type', storedFile.mimeType);
+    response.setHeader(
+      'Content-Disposition',
+      `attachment; filename="${encodeURIComponent(storedFile.originalName)}"`
+    );
+    download.stream.pipe(response);
   }
 }

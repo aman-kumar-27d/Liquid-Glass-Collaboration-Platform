@@ -16,6 +16,7 @@ export class AddFilesPhase41713115800000 implements MigrationInterface {
         "uploaded_by" uuid NOT NULL,
         "original_name" character varying(255) NOT NULL,
         "stored_name" character varying(255) NOT NULL,
+        "file_url" character varying(500),
         "mime_type" character varying(160) NOT NULL,
         "size" bigint NOT NULL,
         "storage_driver" character varying(32) NOT NULL DEFAULT 'local',

@@ -19,6 +19,7 @@
 - unique `users(company_id, email)`
 - indexed `users(company_id, role, is_active)`
 - session refresh tokens stored hashed
+- files can be attached to messages through `files.message_id`
 
 ## Deferred Entities
 
