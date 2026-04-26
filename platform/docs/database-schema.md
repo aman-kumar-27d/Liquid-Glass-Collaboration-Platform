@@ -14,6 +14,9 @@
 - `video_calls`
 - `call_participants`
 - `screen_shares`
+- `subscriptions`
+- `coupons`
+- `redeem_codes`
 
 ## Current Rules
 
@@ -25,12 +28,11 @@
 - files can be attached to messages through `files.message_id`
 - active call lifecycle is modeled through `video_calls.ended_at`
 - screen-sharing state is modeled separately from call participation
+- subscription state is modeled through `subscriptions.is_active`
+- coupon and redeem-code usage is tracked through `used_count`
 
 ## Deferred Entities
 
 - file_transfers
-- subscriptions
-- coupons
-- redeem_codes
 - analytics snapshots
 - notifications

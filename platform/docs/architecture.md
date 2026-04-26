@@ -15,6 +15,9 @@
 - `files`: local or MinIO-backed upload/download metadata and storage abstraction baseline
 - `video`: call lifecycle, participants, and WebRTC signaling baseline
 - `screen`: active screen-share state over call lifecycle
+- `subscription`: plans, current subscription, coupon and redeem-code application
+- `admin`: company-admin user and room management surfaces
+- `master`: platform-wide company, subscription, coupon, and redeem-code management
 - future modules reserved for rooms, messages, files, video, screen, analytics, subscriptions, admin, and master admin
 
 ## Tenant Strategy

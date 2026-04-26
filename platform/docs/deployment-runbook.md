@@ -45,6 +45,7 @@ This uses `sqljs` with auto-save to `platform/backend/.data/dev.sqlite`.
 - frontend build passes
 - mobile typecheck passes
 - offline backend boot passes with `sqljs`
+- workspace currently builds on the locally upgraded dependency set, including Next.js 16 and newer Nest packages
 
 ## Production Follow-Up
 

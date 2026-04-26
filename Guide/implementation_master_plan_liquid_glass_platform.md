@@ -43,17 +43,17 @@ The repository currently includes:
 
 - workspace scaffolding
 - backend foundation with auth, company, user, and health modules
-- rooms, messaging, file storage, and call/screen-sharing backend baselines
-- database entities and migrations through current Phase 5 baseline
+- rooms, messaging, file storage, call/screen-sharing, and admin/subscription backend baselines
+- database entities and migrations through current Phase 7 backend baseline
 - frontend liquid-glass shell
 - mobile scaffold
 - infra and engineering docs
 - offline local DB mode for temporary development
+- dependency baseline updated locally to newer versions, including Next.js 16 and newer Nest packages
 
 Still pending:
 
 - P2P large-file transfer
-- admin/master/subscription features
 - analytics/jobs
 - real frontend feature implementation
 - real mobile feature implementation

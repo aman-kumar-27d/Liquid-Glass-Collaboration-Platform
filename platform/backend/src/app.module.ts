@@ -15,9 +15,12 @@ import { CompaniesModule } from './modules/companies/companies.module';
 import { MessagesModule } from './modules/messages/messages.module';
 import { RoomsModule } from './modules/rooms/rooms.module';
 import { ScreenModule } from './modules/screen/screen.module';
+import { SubscriptionModule } from './modules/subscription/subscription.module';
 import { UsersModule } from './modules/users/users.module';
 import { VideoModule } from './modules/video/video.module';
 import { FilesModule } from './modules/files/files.module';
+import { AdminModule } from './modules/admin/admin.module';
+import { MasterModule } from './modules/master/master.module';
 
 @Module({
   imports: [
@@ -40,7 +43,10 @@ import { FilesModule } from './modules/files/files.module';
     MessagesModule,
     FilesModule,
     VideoModule,
-    ScreenModule
+    ScreenModule,
+    SubscriptionModule,
+    AdminModule,
+    MasterModule
   ]
 })
 export class AppModule implements NestModule {

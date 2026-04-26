@@ -46,8 +46,24 @@
 - `GET /api/v1/calls/rooms/:roomId/active`
 - `POST /api/v1/screen-share/start`
 - `POST /api/v1/screen-share/:callId/stop`
+- `GET /api/v1/subscriptions/plans`
+- `GET /api/v1/subscriptions/current`
+- `POST /api/v1/subscriptions/change-plan`
+- `POST /api/v1/subscriptions/apply-coupon`
+- `POST /api/v1/subscriptions/redeem-code`
+- `GET /api/v1/admin/users`
+- `PATCH /api/v1/admin/users/:id`
+- `GET /api/v1/admin/rooms`
+- `DELETE /api/v1/admin/rooms/:id`
+- `GET /api/v1/master/companies`
+- `GET /api/v1/master/subscriptions`
+- `GET /api/v1/master/coupons`
+- `POST /api/v1/master/coupons`
+- `GET /api/v1/master/redeem-codes`
+- `POST /api/v1/master/redeem-codes`
 
 ## Next Endpoints
 
 - P2P large file transfer signaling
-- subscription and admin surfaces
+- analytics and jobs
+- notification delivery
