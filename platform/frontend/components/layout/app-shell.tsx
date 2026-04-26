@@ -4,9 +4,11 @@ import Link from 'next/link';
 import type { Route } from 'next';
 import { PropsWithChildren } from 'react';
 import { usePathname } from 'next/navigation';
+import { useAuthSession } from '@/hooks/use-auth-session';
 import { GlassCard } from '../liquid-glass/glass-card';
 
 const navItems = [
+  { href: '/auth' as Route, label: 'Auth' },
   { href: '/workspace' as Route, label: 'Dashboard' },
   { href: '/workspace/chat' as Route, label: 'Chat' },
   { href: '/workspace/calls' as Route, label: 'Calls' },
@@ -16,6 +18,7 @@ const navItems = [
 
 export function AppShell({ children }: PropsWithChildren) {
   const pathname = usePathname();
+  const { session, clearSession } = useAuthSession();
 
   return (
     <div className="mx-auto flex min-h-screen max-w-7xl gap-6 px-4 py-6 lg:px-6">
@@ -44,12 +47,25 @@ export function AppShell({ children }: PropsWithChildren) {
         </GlassCard>
 
         <GlassCard>
-          <div className="text-sm uppercase tracking-[0.28em] text-white/60">Phase 8</div>
-          <div className="mt-4 space-y-3 text-sm text-white/75">
-            <div>Tenant dashboard</div>
-            <div>Realtime workspace views</div>
-            <div>Admin and billing surfaces</div>
-          </div>
+          <div className="text-sm uppercase tracking-[0.28em] text-white/60">Session</div>
+          {session ? (
+            <div className="mt-4 space-y-3 text-sm text-white/75">
+              <div>{session.user.name}</div>
+              <div>{session.user.email}</div>
+              <div>{session.user.role}</div>
+              <button
+                type="button"
+                onClick={clearSession}
+                className="rounded-full border border-white/14 px-4 py-2 text-left text-xs text-white/75"
+              >
+                Clear local session
+              </button>
+            </div>
+          ) : (
+            <div className="mt-4 text-sm text-white/70">
+              No local auth session. Use the Auth screen to connect this workspace to the backend.
+            </div>
+          )}
         </GlassCard>
       </aside>
 

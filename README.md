@@ -25,7 +25,7 @@ This repository contains the active implementation of the Liquid Glass Collabora
 The repository now includes:
 
 - backend foundations through the Phase 7 baseline: auth, tenancy, rooms, messaging, files, calls, admin, and subscription APIs
-- a Phase 8 web baseline with dashboard, auth, chat, calls, admin, and billing workspace surfaces
+- a Phase 8 web baseline with live auth/session handling plus dashboard, chat, calls, admin, and billing workspace flows wired to the current backend APIs
 - Expo mobile scaffold
 - Docker and local infrastructure configuration
 - offline local DB mode for temporary development
@@ -34,6 +34,6 @@ Major work still pending:
 
 - analytics and background jobs
 - P2P large-file transfer depth
-- live frontend API wiring and richer error/loading states
+- websocket-driven realtime state, file upload UX, and richer loading/error states
 - real mobile feature implementation
 - production hardening and broader automated tests

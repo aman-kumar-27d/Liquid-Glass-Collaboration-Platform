@@ -25,12 +25,12 @@
 ## Web Surfaces
 
 - `/`: project landing page
-- `/auth`: auth shell aligned to login and owner-registration contracts
-- `/workspace`: tenant overview dashboard
-- `/workspace/chat`: room and message workspace shell
-- `/workspace/calls`: call and screen-share workspace shell
-- `/workspace/admin`: tenant admin shell
-- `/workspace/billing`: subscription and billing shell
+- `/auth`: live login and owner-registration shell using local token storage for temporary development
+- `/workspace`: tenant overview dashboard with live room and subscription reads
+- `/workspace/chat`: room and message workspace with room creation and text message send
+- `/workspace/calls`: active-call inspection and call start/join/leave actions
+- `/workspace/admin`: tenant admin reads with user activation toggles
+- `/workspace/billing`: subscription reads with plan change, coupon, and redeem-code actions
 
 ## Tenant Strategy
 

@@ -53,17 +53,17 @@ Implemented now:
 - dependency baseline upgraded locally, including Next.js 16 and current Nest packages
 - Phase 8 web baseline:
   - landing page
-  - auth surface
-  - workspace dashboard
-  - chat workspace shell
-  - calls workspace shell
-  - admin workspace shell
-  - billing workspace shell
+  - auth surface with live login and owner registration
+  - workspace dashboard with live room and subscription reads
+  - chat workspace with live room reads, room creation, and text message sending
+  - calls workspace with live active-call reads plus start, join, and leave actions
+  - admin workspace with live tenant user and room reads plus user activation toggles
+  - billing workspace with live plan reads plus change-plan, coupon, and redeem-code actions
 
 Still pending:
 
 - P2P large-file transfer and transfer-state workflows
 - analytics and background jobs
-- live frontend API integration and realtime state wiring
+- websocket-driven realtime state wiring, file upload UX, and route-level loading/error polish
 - real mobile feature implementation
 - production hardening, monitoring, and broader automated test coverage

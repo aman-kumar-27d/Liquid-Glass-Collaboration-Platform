@@ -1,6 +1,4 @@
-import { ChannelList } from '@/components/chat/channel-list';
-import { ChatFeed } from '@/components/chat/chat-feed';
-import { PresencePanel } from '@/components/chat/presence-panel';
+import { ChatWorkspace } from '@/components/chat/chat-workspace';
 import { AppShell } from '@/components/layout/app-shell';
 import { PageHeader } from '@/components/layout/page-header';
 import { GlassCard } from '@/components/liquid-glass/glass-card';
@@ -13,15 +11,11 @@ export default function WorkspaceChatPage() {
           <PageHeader
             eyebrow="Messaging"
             title="Realtime workspace communication"
-            description="This page aligns to `/api/v1/rooms`, `/api/v1/messages`, reactions, file attachments, and websocket presence and typing events."
+            description="Rooms and messages now load from the backend and support room creation plus text message sending. Websocket presence and typing still need live client-side event wiring."
           />
         </GlassCard>
 
-        <div className="grid gap-6 xl:grid-cols-[0.8fr_1.4fr_0.8fr]">
-          <ChannelList />
-          <ChatFeed />
-          <PresencePanel />
-        </div>
+        <ChatWorkspace />
       </div>
     </AppShell>
   );
