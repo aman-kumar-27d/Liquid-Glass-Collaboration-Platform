@@ -12,13 +12,25 @@
 - `auth`: authentication, session lifecycle, audit logging for auth events
 - `companies`: tenant records and company profile
 - `users`: tenant-scoped user listing and lifecycle
+- `rooms`: room lifecycle and membership
+- `messages`: room messages, updates, deletes, reactions, and websocket broadcast baseline
 - `files`: local or MinIO-backed upload/download metadata and storage abstraction baseline
 - `video`: call lifecycle, participants, and WebRTC signaling baseline
 - `screen`: active screen-share state over call lifecycle
 - `subscription`: plans, current subscription, coupon and redeem-code application
 - `admin`: company-admin user and room management surfaces
 - `master`: platform-wide company, subscription, coupon, and redeem-code management
-- future modules reserved for rooms, messages, files, video, screen, analytics, subscriptions, admin, and master admin
+- `analytics`: reserved for usage aggregation and reporting jobs
+
+## Web Surfaces
+
+- `/`: project landing page
+- `/auth`: auth shell aligned to login and owner-registration contracts
+- `/workspace`: tenant overview dashboard
+- `/workspace/chat`: room and message workspace shell
+- `/workspace/calls`: call and screen-share workspace shell
+- `/workspace/admin`: tenant admin shell
+- `/workspace/billing`: subscription and billing shell
 
 ## Tenant Strategy
 

@@ -39,22 +39,31 @@ This document is the authoritative implementation plan adopted for this reposito
 
 ## Current Implementation State
 
-The repository currently includes:
+Implemented now:
 
-- workspace scaffolding
-- backend foundation with auth, company, user, and health modules
-- rooms, messaging, file storage, call/screen-sharing, and admin/subscription backend baselines
-- database entities and migrations through current Phase 7 backend baseline
-- frontend liquid-glass shell
-- mobile scaffold
-- infra and engineering docs
+- monorepo workspace and local infrastructure baseline
+- backend phases through the Phase 7 baseline:
+  - auth, tenant provisioning, sessions, and audit logging
+  - rooms, room membership, messages, reactions, and websocket signaling baseline
+  - local and MinIO-oriented file storage abstraction baseline
+  - call lifecycle and screen-share signaling baseline
+  - admin, master admin, subscriptions, coupons, and redeem-code backend surfaces
+- database entities and migrations through the current backend baseline
 - offline local DB mode for temporary development
-- dependency baseline updated locally to newer versions, including Next.js 16 and newer Nest packages
+- dependency baseline upgraded locally, including Next.js 16 and current Nest packages
+- Phase 8 web baseline:
+  - landing page
+  - auth surface
+  - workspace dashboard
+  - chat workspace shell
+  - calls workspace shell
+  - admin workspace shell
+  - billing workspace shell
 
 Still pending:
 
-- P2P large-file transfer
-- analytics/jobs
-- real frontend feature implementation
+- P2P large-file transfer and transfer-state workflows
+- analytics and background jobs
+- live frontend API integration and realtime state wiring
 - real mobile feature implementation
-- production hardening and broader test coverage
+- production hardening, monitoring, and broader automated test coverage

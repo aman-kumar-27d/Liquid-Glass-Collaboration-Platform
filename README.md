@@ -1,6 +1,6 @@
 # Liquid Glass Collaboration Platform
 
-This repository contains the initial implementation scaffold for the Liquid Glass Collaboration Platform.
+This repository contains the active implementation of the Liquid Glass Collaboration Platform.
 
 ## Workspace
 
@@ -22,4 +22,18 @@ This repository contains the initial implementation scaffold for the Liquid Glas
 
 ## Status
 
-This commit implements the monorepo baseline, core backend foundations, API contract stubs, documentation, and infrastructure required to start delivery against the master plan.
+The repository now includes:
+
+- backend foundations through the Phase 7 baseline: auth, tenancy, rooms, messaging, files, calls, admin, and subscription APIs
+- a Phase 8 web baseline with dashboard, auth, chat, calls, admin, and billing workspace surfaces
+- Expo mobile scaffold
+- Docker and local infrastructure configuration
+- offline local DB mode for temporary development
+
+Major work still pending:
+
+- analytics and background jobs
+- P2P large-file transfer depth
+- live frontend API wiring and richer error/loading states
+- real mobile feature implementation
+- production hardening and broader automated tests
