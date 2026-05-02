@@ -143,3 +143,43 @@ export interface ScreenShareRecord {
   startedAt: string;
   endedAt?: string | null;
 }
+
+export interface UsageEventRecord {
+  id: string;
+  companyId?: string | null;
+  userId?: string | null;
+  eventType: string;
+  entityType?: string | null;
+  entityId?: string | null;
+  occurredAt: string;
+  metadata?: Record<string, unknown> | null;
+}
+
+export interface AnalyticsSnapshotRecord {
+  id: string;
+  companyId?: string | null;
+  scope: string;
+  snapshotDate: string;
+  summary: Record<string, unknown>;
+  createdAt: string;
+}
+
+export interface AnalyticsDashboardRecord {
+  current: {
+    activeUsers: number;
+    openRooms: number;
+    messages: number;
+    files: number;
+    activeCalls: number;
+  };
+  subscription: SubscriptionRecord | null;
+  latestSnapshot: AnalyticsSnapshotRecord | null;
+  recentEvents: UsageEventRecord[];
+}
+
+export interface UsageSummaryRecord {
+  dateFrom: string;
+  dateTo: string;
+  counts: Record<string, number>;
+  totalEvents: number;
+}

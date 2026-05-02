@@ -5,7 +5,13 @@ import type { Route } from 'next';
 import { useEffect, useEffectEvent, useState } from 'react';
 import { useAuthSession } from '@/hooks/use-auth-session';
 import { apiRequest } from '@/lib/api-client';
-import { AdminUserRecord, RoomRecord, SubscriptionRecord } from '@/lib/types';
+import {
+  AdminUserRecord,
+  AnalyticsDashboardRecord,
+  RoomRecord,
+  SubscriptionRecord,
+  UsageSummaryRecord
+} from '@/lib/types';
 import { PageHeader } from '../layout/page-header';
 import { StatCard } from '../layout/stat-card';
 import { GlassCard } from '../liquid-glass/glass-card';
@@ -13,8 +19,10 @@ import { GlassCard } from '../liquid-glass/glass-card';
 const authRoute = '/auth' as Route;
 
 interface DashboardState {
+  analytics: AnalyticsDashboardRecord | null;
   rooms: RoomRecord[];
   subscription: SubscriptionRecord | null;
+  usageSummary: UsageSummaryRecord | null;
   users: AdminUserRecord[];
 }
 
@@ -23,8 +31,10 @@ export function DashboardOverview() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [state, setState] = useState<DashboardState>({
+    analytics: null,
     rooms: [],
     subscription: null,
+    usageSummary: null,
     users: []
   });
 
@@ -48,6 +58,16 @@ export function DashboardOverview() {
         session,
         onSessionChange: setSession
       });
+      const analyticsRequest = apiRequest<AnalyticsDashboardRecord>('/analytics/dashboard', {
+        requiresAuth: true,
+        session,
+        onSessionChange: setSession
+      });
+      const usageSummaryRequest = apiRequest<UsageSummaryRecord>('/analytics/usage-summary', {
+        requiresAuth: true,
+        session,
+        onSessionChange: setSession
+      });
       const usersRequest =
         session.user.role === 'company_admin' || session.user.role === 'master_admin'
           ? apiRequest<AdminUserRecord[]>('/admin/users', {
@@ -57,15 +77,19 @@ export function DashboardOverview() {
             })
           : Promise.resolve(null);
 
-      const [roomsEnvelope, subscriptionEnvelope, usersEnvelope] = await Promise.all([
+      const [roomsEnvelope, subscriptionEnvelope, analyticsEnvelope, usageSummaryEnvelope, usersEnvelope] = await Promise.all([
         roomsRequest,
         subscriptionRequest,
+        analyticsRequest,
+        usageSummaryRequest,
         usersRequest
       ]);
 
       setState({
+        analytics: analyticsEnvelope.data,
         rooms: roomsEnvelope.data,
         subscription: subscriptionEnvelope.data,
+        usageSummary: usageSummaryEnvelope.data,
         users: usersEnvelope?.data ?? []
       });
     } catch (requestError) {
@@ -111,6 +135,10 @@ export function DashboardOverview() {
 
   const activeUsers = state.users.filter((user) => user.isActive).length;
   const subscriptionPlan = state.subscription?.plan?.toUpperCase() ?? session.company?.plan ?? 'TRIAL';
+  const dashboardCurrent = state.analytics?.current;
+  const topUsageEvent =
+    state.usageSummary &&
+    Object.entries(state.usageSummary.counts).sort((left, right) => right[1] - left[1])[0];
 
   return (
     <div className="space-y-6">
@@ -118,7 +146,7 @@ export function DashboardOverview() {
         <PageHeader
           eyebrow="Tenant Overview"
           title="Operations command surface"
-          description="This dashboard is now reading live room and subscription data from the backend. Admin role sessions also pull tenant user summaries."
+          description="This dashboard now reads live room and subscription data, plus analytics snapshots and usage summaries from the backend."
           action={
             <button
               type="button"
@@ -141,53 +169,59 @@ export function DashboardOverview() {
         <StatCard label="Current Plan" value={subscriptionPlan} detail="Current active subscription" />
         <StatCard
           label="Open Rooms"
-          value={String(state.rooms.length)}
+          value={String(dashboardCurrent?.openRooms ?? state.rooms.length)}
           detail={state.rooms.length ? state.rooms[0].name : 'No rooms yet'}
         />
         <StatCard
           label="Tenant Users"
-          value={String(state.users.length || 1)}
+          value={String(dashboardCurrent?.activeUsers ?? (state.users.length || 1))}
           detail={state.users.length ? `${activeUsers} active accounts` : 'Admin scope not available'}
         />
-        <StatCard label="Session User" value={session.user.name} detail={session.user.email} />
+        <StatCard
+          label="Usage Events"
+          value={String(state.usageSummary?.totalEvents ?? 0)}
+          detail={topUsageEvent ? `${topUsageEvent[0]} leads with ${topUsageEvent[1]}` : session.user.email}
+        />
       </div>
 
       <div className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
         <GlassCard>
-          <div className="text-sm uppercase tracking-[0.28em] text-white/60">Room Inventory</div>
+          <div className="text-sm uppercase tracking-[0.28em] text-white/60">Recent Activity</div>
           <div className="mt-4 space-y-3">
-            {state.rooms.length ? (
-              state.rooms.map((room) => (
+            {state.analytics?.recentEvents.length ? (
+              state.analytics.recentEvents.map((event) => (
                 <div
-                  key={room.id}
+                  key={event.id}
                   className="rounded-2xl border border-white/10 bg-slate-950/20 px-4 py-4"
                 >
-                  <div className="font-medium text-white">{room.name}</div>
-                  <div className="mt-1 text-sm text-white/60">{room.type}</div>
+                  <div className="font-medium text-white">{event.eventType}</div>
+                  <div className="mt-1 text-sm text-white/60">
+                    {new Date(event.occurredAt).toLocaleString()}
+                  </div>
                 </div>
               ))
             ) : (
               <div className="text-sm text-white/65">
-                {loading ? 'Loading rooms...' : 'No rooms available for this tenant yet.'}
+                {loading ? 'Loading analytics...' : 'No recent usage events yet.'}
               </div>
             )}
           </div>
         </GlassCard>
 
         <GlassCard>
-          <div className="text-sm uppercase tracking-[0.28em] text-white/60">Current Subscription</div>
+          <div className="text-sm uppercase tracking-[0.28em] text-white/60">Analytics Snapshot</div>
           <div className="mt-4 space-y-3 text-sm text-white/75">
             <div>Company: {session.company?.name ?? session.user.companyId}</div>
             <div>Plan: {subscriptionPlan}</div>
             <div>
-              Start date:{' '}
-              {state.subscription?.startDate
-                ? new Date(state.subscription.startDate).toLocaleDateString()
-                : 'Pending first activation'}
+              Active calls: {dashboardCurrent?.activeCalls ?? 0}
             </div>
             <div>
-              Coupon state:{' '}
-              {state.subscription?.metadata?.coupon ? 'Coupon applied to subscription metadata' : 'No coupon metadata'}
+              Files tracked: {dashboardCurrent?.files ?? 0}
+            </div>
+            <div>
+              Latest snapshot:{' '}
+              {state.analytics?.latestSnapshot?.snapshotDate ?? 'No daily snapshot yet'}
             </div>
           </div>
         </GlassCard>
