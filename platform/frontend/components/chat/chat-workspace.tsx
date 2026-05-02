@@ -3,12 +3,20 @@
 import { useEffect, useEffectEvent, useRef, useState } from 'react';
 import { useAuthSession } from '@/hooks/use-auth-session';
 import { useRealtimeSocket } from '@/hooks/use-realtime-socket';
-import { apiRequest, uploadFormRequest } from '@/lib/api-client';
+import { apiRequest, downloadFileRequest, uploadFormRequest } from '@/lib/api-client';
 import { emitWithAck } from '@/lib/realtime-client';
 import { ApiEnvelope, MessageReaction, MessageRecord, RoomRecord, StoredFile } from '@/lib/types';
 import { ChannelList } from './channel-list';
 import { ChatFeed } from './chat-feed';
 import { PresencePanel } from './presence-panel';
+
+interface UploadDraft {
+  id: string;
+  name: string;
+  progress: number;
+  size: number;
+  status: 'done' | 'error' | 'uploading';
+}
 
 export function ChatWorkspace() {
   const { ready, session, setSession } = useAuthSession();
@@ -20,6 +28,7 @@ export function ChatWorkspace() {
   const [attachments, setAttachments] = useState<StoredFile[]>([]);
   const [draft, setDraft] = useState('');
   const [fileUploading, setFileUploading] = useState(false);
+  const [uploadDrafts, setUploadDrafts] = useState<UploadDraft[]>([]);
   const [loading, setLoading] = useState(false);
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -73,6 +82,7 @@ export function ChatWorkspace() {
       setActiveRoom(roomEnvelope.data);
       setMessages(messagesEnvelope.data);
       setAttachments([]);
+      setUploadDrafts([]);
     } catch (requestError) {
       const message =
         requestError instanceof Error ? requestError.message : 'Failed to load room data';
@@ -178,26 +188,87 @@ export function ChatWorkspace() {
       const uploadedFiles: StoredFile[] = [];
 
       for (const file of Array.from(files)) {
+        const uploadId = crypto.randomUUID();
+        setUploadDrafts((current) => [
+          ...current,
+          {
+            id: uploadId,
+            name: file.name,
+            progress: 0,
+            size: file.size,
+            status: 'uploading'
+          }
+        ]);
+
         const formData = new FormData();
         formData.append('file', file);
         formData.append('roomId', activeRoomId);
 
-        const envelope = await uploadFormRequest<StoredFile>('/files/upload', formData, session, setSession);
+        const envelope = await uploadFormRequest<StoredFile>('/files/upload', formData, session, {
+          onProgress: (progress) => {
+            setUploadDrafts((current) =>
+              current.map((item) => (item.id === uploadId ? { ...item, progress } : item))
+            );
+          },
+          onSessionChange: setSession
+        });
         uploadedFiles.push(envelope.data);
+
+        setUploadDrafts((current) =>
+          current.map((item) =>
+            item.id === uploadId ? { ...item, progress: 100, status: 'done' } : item
+          )
+        );
       }
 
       setAttachments((current) => [...current, ...uploadedFiles]);
+      setUploadDrafts((current) => current.filter((item) => item.status !== 'done'));
     } catch (requestError) {
       const message =
         requestError instanceof Error ? requestError.message : 'Failed to upload file';
       setError(message);
+      setUploadDrafts((current) =>
+        current.map((item) =>
+          item.status === 'uploading' ? { ...item, status: 'error' } : item
+        )
+      );
     } finally {
       setFileUploading(false);
     }
   };
 
-  const removeAttachment = (fileId: string) => {
-    setAttachments((current) => current.filter((file) => file.id !== fileId));
+  const removeAttachment = async (fileId: string) => {
+    if (!session) {
+      return;
+    }
+
+    try {
+      await apiRequest(`/files/${fileId}`, {
+        method: 'DELETE',
+        requiresAuth: true,
+        session,
+        onSessionChange: setSession
+      });
+      setAttachments((current) => current.filter((file) => file.id !== fileId));
+    } catch (requestError) {
+      const message =
+        requestError instanceof Error ? requestError.message : 'Failed to remove attachment';
+      setError(message);
+    }
+  };
+
+  const downloadFile = async (file: StoredFile) => {
+    if (!session) {
+      return;
+    }
+
+    try {
+      await downloadFileRequest(file, session, setSession);
+    } catch (requestError) {
+      const message =
+        requestError instanceof Error ? requestError.message : 'Failed to download file';
+      setError(message);
+    }
   };
 
   const upsertMessage = useEffectEvent((nextMessage: MessageRecord) => {
@@ -386,8 +457,9 @@ export function ChatWorkspace() {
           loading={loading}
           messages={messages}
           onDraftChange={setDraft}
+          onDownloadFile={downloadFile}
           onFileSelect={(files) => void uploadFiles(files)}
-          onRemoveAttachment={removeAttachment}
+          onRemoveAttachment={(fileId) => void removeAttachment(fileId)}
           onSend={async () => {
             if (!session || !activeRoomId || (!draft.trim() && !attachments.length)) {
               return;
@@ -426,6 +498,7 @@ export function ChatWorkspace() {
               setLoading(false);
             }
           }}
+          uploadDrafts={uploadDrafts}
         />
         <PresencePanel
           activeRoom={activeRoom}

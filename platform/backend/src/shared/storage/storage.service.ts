@@ -47,6 +47,15 @@ export class StorageService {
     };
   }
 
+  async deleteObject(storagePath: string) {
+    if (this.driver === 'minio') {
+      await this.deleteMinioObject(storagePath);
+      return;
+    }
+
+    await fs.rm(storagePath, { force: true });
+  }
+
   private async storeLocally(input: StoreFileInput): Promise<StoredObjectDescriptor> {
     const uploadsRoot = path.resolve(
       process.cwd(),
@@ -93,6 +102,13 @@ export class StorageService {
       mode: 'stream' as const,
       stream
     };
+  }
+
+  private async deleteMinioObject(storagePath: string) {
+    const client = this.getMinioClient();
+    const [bucket, ...rest] = storagePath.split('/');
+    const objectName = rest.join('/');
+    await client.removeObject(bucket, objectName);
   }
 
   private async ensureBucket(bucket: string) {

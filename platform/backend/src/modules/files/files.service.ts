@@ -105,6 +105,35 @@ export class FilesService {
     return storedFile;
   }
 
+  async remove(id: string, actor: AuthUser) {
+    const storedFile = await this.filesRepository.findOne({
+      where: { id, companyId: actor.companyId }
+    });
+    if (!storedFile) {
+      throw new NotFoundException('File not found');
+    }
+
+    await this.roomsService.ensureMembership(storedFile.roomId, actor as any);
+
+    if (storedFile.uploadedBy !== actor.sub) {
+      throw new ForbiddenException('You can only remove files you uploaded');
+    }
+
+    if (storedFile.messageId) {
+      throw new ForbiddenException('Attached files cannot be removed from the staging area');
+    }
+
+    await this.storageService.deleteObject(storedFile.storagePath);
+    await this.filesRepository.remove(storedFile);
+
+    return {
+      success: true,
+      data: { id, roomId: storedFile.roomId },
+      error: null,
+      meta: null
+    };
+  }
+
   async attachFilesToMessage(
     fileIds: string[] | undefined,
     roomId: string,

@@ -1,11 +1,11 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   ParseUUIDPipe,
   Post,
-  Query,
   Res,
   UploadedFile,
   UseGuards,
@@ -42,6 +42,11 @@ export class FilesController {
   @Get(':id')
   getMetadata(@Param('id', new ParseUUIDPipe()) id: string, @CurrentUser() user: any) {
     return this.filesService.getMetadata(id, user);
+  }
+
+  @Delete(':id')
+  remove(@Param('id', new ParseUUIDPipe()) id: string, @CurrentUser() user: any) {
+    return this.filesService.remove(id, user);
   }
 
   @Get(':id/download')

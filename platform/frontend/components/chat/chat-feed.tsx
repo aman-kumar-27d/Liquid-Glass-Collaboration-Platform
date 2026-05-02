@@ -4,6 +4,14 @@ import { FormEvent } from 'react';
 import { MessageRecord, RoomRecord, StoredFile } from '@/lib/types';
 import { GlassCard } from '../liquid-glass/glass-card';
 
+interface UploadDraft {
+  id: string;
+  name: string;
+  progress: number;
+  size: number;
+  status: 'done' | 'error' | 'uploading';
+}
+
 interface ChatFeedProps {
   activeRoom: RoomRecord | null;
   attachments: StoredFile[];
@@ -15,6 +23,8 @@ interface ChatFeedProps {
   onFileSelect: (files: FileList | null) => void;
   onRemoveAttachment: (fileId: string) => void;
   onSend: () => Promise<void>;
+  onDownloadFile: (file: StoredFile) => Promise<void>;
+  uploadDrafts: UploadDraft[];
 }
 
 export function ChatFeed({
@@ -25,9 +35,11 @@ export function ChatFeed({
   loading,
   messages,
   onDraftChange,
+  onDownloadFile,
   onFileSelect,
   onRemoveAttachment,
-  onSend
+  onSend,
+  uploadDrafts
 }: ChatFeedProps) {
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -53,12 +65,14 @@ export function ChatFeed({
               {message.files.length ? (
                 <div className="mt-3 flex flex-wrap gap-2">
                   {message.files.map((file) => (
-                    <span
+                    <button
                       key={file.id}
+                      type="button"
+                      onClick={() => void onDownloadFile(file)}
                       className="rounded-full border border-white/10 bg-white/8 px-3 py-1 text-xs text-white/70"
                     >
                       {file.originalName}
-                    </span>
+                    </button>
                   ))}
                 </div>
               ) : null}
@@ -72,6 +86,31 @@ export function ChatFeed({
       </div>
 
       <form className="mt-5 space-y-3" onSubmit={submit}>
+        {uploadDrafts.length ? (
+          <div className="space-y-2">
+            {uploadDrafts.map((item) => (
+              <div
+                key={item.id}
+                className="rounded-2xl border border-white/10 bg-slate-950/20 px-4 py-3 text-sm text-white/75"
+              >
+                <div className="flex items-center justify-between gap-4">
+                  <span className="truncate">{item.name}</span>
+                  <span className="text-xs text-white/55">
+                    {item.status === 'uploading' ? `${item.progress}%` : item.status}
+                  </span>
+                </div>
+                <div className="mt-2 h-2 rounded-full bg-white/8">
+                  <div
+                    className={`h-2 rounded-full ${
+                      item.status === 'error' ? 'bg-rose-300/80' : 'bg-cyan-300/80'
+                    }`}
+                    style={{ width: `${Math.max(item.progress, item.status === 'done' ? 100 : 4)}%` }}
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : null}
         {attachments.length ? (
           <div className="flex flex-wrap gap-2">
             {attachments.map((file) => (
