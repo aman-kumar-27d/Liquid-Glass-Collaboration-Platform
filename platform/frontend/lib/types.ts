@@ -134,3 +134,12 @@ export interface VideoCallRecord {
   createdAt: string;
   participants: CallParticipantRecord[];
 }
+
+export interface ScreenShareRecord {
+  id: string;
+  companyId: string;
+  callId: string;
+  userId: string;
+  startedAt: string;
+  endedAt?: string | null;
+}

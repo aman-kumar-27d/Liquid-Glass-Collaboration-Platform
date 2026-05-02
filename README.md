@@ -28,6 +28,7 @@ The repository now includes:
 - a Phase 8 web baseline with live auth/session handling plus dashboard, chat, calls, admin, and billing workspace flows wired to the current backend APIs
 - websocket client wiring for chat room membership, message fanout, presence, typing state, and call join/leave synchronization
 - chat file management UX with staged attachments, authenticated downloads, real staged-file removal, and per-file upload progress mapped to the current file metadata and message `fileIds` flow
+- call and screen-share UX with local media capture, WebRTC offer/answer/candidate signaling, participant media tiles, and socket-driven share state
 - Expo mobile scaffold
 - Docker and local infrastructure configuration
 - offline local DB mode for temporary development
@@ -36,6 +37,6 @@ Major work still pending:
 
 - analytics and background jobs
 - P2P large-file transfer depth
-- deeper call signaling, file upload UX, and richer loading/error states
+- production-grade media controls, fallback states, and richer loading/error states
 - real mobile feature implementation
 - production hardening and broader automated tests
