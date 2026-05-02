@@ -3,6 +3,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { AnalyticsModule } from '../analytics/analytics.module';
 import { CompaniesModule } from '../companies/companies.module';
 import { Company } from '../companies/company.entity';
 import { User } from '../users/user.entity';
@@ -24,7 +25,8 @@ import { Session } from './session.entity';
       })
     }),
     TypeOrmModule.forFeature([Company, User, Session, AuditLog]),
-    CompaniesModule
+    CompaniesModule,
+    AnalyticsModule
   ],
   controllers: [AuthController],
   providers: [AuthService, JwtStrategy],

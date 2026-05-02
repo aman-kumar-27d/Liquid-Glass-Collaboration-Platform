@@ -8,6 +8,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { RoomMemberRole } from '../../common/enums/room-member-role.enum';
 import { UserRole } from '../../common/enums/user-role.enum';
+import { AnalyticsService } from '../analytics/analytics.service';
 import { User } from '../users/user.entity';
 import { RoomMember } from './room-member.entity';
 import { Room } from './room.entity';
@@ -27,7 +28,8 @@ export class RoomsService {
     @InjectRepository(RoomMember)
     private readonly roomMembersRepository: Repository<RoomMember>,
     @InjectRepository(User)
-    private readonly usersRepository: Repository<User>
+    private readonly usersRepository: Repository<User>,
+    private readonly analyticsService: AnalyticsService
   ) {}
 
   async create(dto: CreateRoomDto, actor: AuthUser) {
@@ -47,6 +49,14 @@ export class RoomsService {
         role: RoomMemberRole.OWNER
       })
     );
+
+    await this.analyticsService.recordEvent({
+      companyId: actor.companyId,
+      userId: actor.sub,
+      eventType: 'room.created',
+      entityType: 'room',
+      entityId: room.id
+    });
 
     return this.findOne(room.id, actor);
   }
@@ -102,6 +112,14 @@ export class RoomsService {
         role: RoomMemberRole.MEMBER
       })
     );
+
+    await this.analyticsService.recordEvent({
+      companyId: actor.companyId,
+      userId: actor.sub,
+      eventType: 'room.joined',
+      entityType: 'room',
+      entityId: roomId
+    });
 
     return { success: true, data: membership, error: null, meta: null };
   }

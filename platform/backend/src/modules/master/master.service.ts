@@ -1,6 +1,7 @@
 import { ConflictException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { AnalyticsService } from '../analytics/analytics.service';
 import { Company } from '../companies/company.entity';
 import { Coupon } from '../coupons/coupon.entity';
 import { CreateCouponDto } from '../coupons/coupons.dto';
@@ -18,7 +19,8 @@ export class MasterService {
     @InjectRepository(Coupon)
     private readonly couponsRepository: Repository<Coupon>,
     @InjectRepository(RedeemCode)
-    private readonly redeemCodesRepository: Repository<RedeemCode>
+    private readonly redeemCodesRepository: Repository<RedeemCode>,
+    private readonly analyticsService: AnalyticsService
   ) {}
 
   async listCompanies() {
@@ -83,5 +85,9 @@ export class MasterService {
     );
 
     return { success: true, data: redeemCode, error: null, meta: null };
+  }
+
+  async getSystemStats() {
+    return this.analyticsService.getPlatformStats();
   }
 }

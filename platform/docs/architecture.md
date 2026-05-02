@@ -20,7 +20,7 @@
 - `subscription`: plans, current subscription, coupon and redeem-code application
 - `admin`: company-admin user and room management surfaces
 - `master`: platform-wide company, subscription, coupon, and redeem-code management
-- `analytics`: reserved for usage aggregation and reporting jobs
+- `analytics`: usage event capture, daily snapshot aggregation, tenant dashboards, platform stats, and cleanup jobs
 
 ## Web Surfaces
 

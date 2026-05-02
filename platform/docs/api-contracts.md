@@ -46,6 +46,8 @@
 - `GET /api/v1/calls/rooms/:roomId/active`
 - `POST /api/v1/screen-share/start`
 - `POST /api/v1/screen-share/:callId/stop`
+- `GET /api/v1/analytics/dashboard`
+- `GET /api/v1/analytics/usage-summary`
 - `GET /api/v1/subscriptions/plans`
 - `GET /api/v1/subscriptions/current`
 - `POST /api/v1/subscriptions/change-plan`
@@ -61,9 +63,9 @@
 - `POST /api/v1/master/coupons`
 - `GET /api/v1/master/redeem-codes`
 - `POST /api/v1/master/redeem-codes`
+- `GET /api/v1/master/system-stats`
 
 ## Next Endpoints
 
 - P2P large file transfer signaling
-- analytics and jobs
 - notification delivery

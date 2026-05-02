@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { IsNull, Repository } from 'typeorm';
+import { AnalyticsService } from '../analytics/analytics.service';
 import { RoomsService } from '../rooms/rooms.service';
 import { JoinCallDto, StartCallDto } from './video.dto';
 import { CallParticipant } from './call-participant.entity';
@@ -23,7 +24,8 @@ export class VideoService {
     private readonly videoCallsRepository: Repository<VideoCall>,
     @InjectRepository(CallParticipant)
     private readonly callParticipantsRepository: Repository<CallParticipant>,
-    private readonly roomsService: RoomsService
+    private readonly roomsService: RoomsService,
+    private readonly analyticsService: AnalyticsService
   ) {}
 
   async startCall(dto: StartCallDto, actor: AuthUser) {
@@ -57,6 +59,15 @@ export class VideoService {
       })
     );
 
+    await this.analyticsService.recordEvent({
+      companyId: actor.companyId,
+      userId: actor.sub,
+      eventType: 'call.started',
+      entityType: 'call',
+      entityId: call.id,
+      metadata: { roomId: dto.roomId }
+    });
+
     return this.getCall(call.id, actor);
   }
 
@@ -80,6 +91,14 @@ export class VideoService {
         userId: actor.sub
       })
     );
+
+    await this.analyticsService.recordEvent({
+      companyId: actor.companyId,
+      userId: actor.sub,
+      eventType: 'call.joined',
+      entityType: 'call',
+      entityId: call.id
+    });
 
     return { success: true, data: participant, error: null, meta: null };
   }

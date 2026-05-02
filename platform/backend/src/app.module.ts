@@ -21,6 +21,7 @@ import { VideoModule } from './modules/video/video.module';
 import { FilesModule } from './modules/files/files.module';
 import { AdminModule } from './modules/admin/admin.module';
 import { MasterModule } from './modules/master/master.module';
+import { AnalyticsModule } from './modules/analytics/analytics.module';
 
 @Module({
   imports: [
@@ -46,7 +47,8 @@ import { MasterModule } from './modules/master/master.module';
     ScreenModule,
     SubscriptionModule,
     AdminModule,
-    MasterModule
+    MasterModule,
+    AnalyticsModule
   ]
 })
 export class AppModule implements NestModule {

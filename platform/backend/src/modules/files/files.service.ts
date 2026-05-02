@@ -6,6 +6,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { AnalyticsService } from '../analytics/analytics.service';
 import { Message } from '../messages/message.entity';
 import { RoomsService } from '../rooms/rooms.service';
 import { StorageService } from '../../shared/storage/storage.service';
@@ -26,6 +27,7 @@ export class FilesService {
     @InjectRepository(Message)
     private readonly messagesRepository: Repository<Message>,
     private readonly roomsService: RoomsService,
+    private readonly analyticsService: AnalyticsService,
     private readonly configService: ConfigService,
     private readonly storageService: StorageService
   ) {}
@@ -77,6 +79,19 @@ export class FilesService {
 
     storedFile.fileUrl = this.buildFileUrl(storedFile.id);
     storedFile = await this.filesRepository.save(storedFile);
+
+    await this.analyticsService.recordEvent({
+      companyId: actor.companyId,
+      userId: actor.sub,
+      eventType: 'file.uploaded',
+      entityType: 'file',
+      entityId: storedFile.id,
+      metadata: {
+        roomId: dto.roomId,
+        size: file.size,
+        mimeType: storedFile.mimeType
+      }
+    });
 
     return { success: true, data: storedFile, error: null, meta: null };
   }

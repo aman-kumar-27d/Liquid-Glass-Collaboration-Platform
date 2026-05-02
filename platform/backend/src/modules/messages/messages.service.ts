@@ -6,6 +6,7 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { IsNull, Repository } from 'typeorm';
 import { UserRole } from '../../common/enums/user-role.enum';
+import { AnalyticsService } from '../analytics/analytics.service';
 import { StoredFile } from '../files/file.entity';
 import { RoomsService } from '../rooms/rooms.service';
 import { CreateMessageDto, ListMessagesQueryDto, ReactToMessageDto, UpdateMessageDto } from './messages.dto';
@@ -27,7 +28,8 @@ export class MessagesService {
     private readonly reactionsRepository: Repository<MessageReaction>,
     @InjectRepository(StoredFile)
     private readonly filesRepository: Repository<StoredFile>,
-    private readonly roomsService: RoomsService
+    private readonly roomsService: RoomsService,
+    private readonly analyticsService: AnalyticsService
   ) {}
 
   async list(query: ListMessagesQueryDto, actor: AuthUser) {
@@ -111,6 +113,18 @@ export class MessagesService {
       relations: { reactions: true, files: true }
     });
 
+    await this.analyticsService.recordEvent({
+      companyId: actor.companyId,
+      userId: actor.sub,
+      eventType: 'message.created',
+      entityType: 'message',
+      entityId: message.id,
+      metadata: {
+        roomId: dto.roomId,
+        fileCount: dto.fileIds?.length ?? 0
+      }
+    });
+
     return { success: true, data: fullMessage, error: null, meta: null };
   }
 
@@ -169,6 +183,15 @@ export class MessagesService {
         emoji: dto.emoji
       })
     );
+
+    await this.analyticsService.recordEvent({
+      companyId: actor.companyId,
+      userId: actor.sub,
+      eventType: 'message.reacted',
+      entityType: 'message',
+      entityId: messageId,
+      metadata: { emoji: dto.emoji, roomId: message.roomId }
+    });
 
     return {
       success: true,

@@ -48,6 +48,12 @@ Implemented now:
   - local and MinIO-oriented file storage abstraction baseline
   - call lifecycle and screen-share signaling baseline
   - admin, master admin, subscriptions, coupons, and redeem-code backend surfaces
+  - analytics and jobs baseline:
+    - usage event capture from auth, rooms, messages, files, calls, and screen share
+    - daily snapshot aggregation
+    - tenant analytics endpoints
+    - platform stats endpoint
+    - worker tasks for aggregation and cleanup
 - database entities and migrations through the current backend baseline
 - offline local DB mode for temporary development
 - dependency baseline upgraded locally, including Next.js 16 and current Nest packages
@@ -63,7 +69,7 @@ Implemented now:
 Still pending:
 
 - P2P large-file transfer and transfer-state workflows
-- analytics and background jobs
 - production-grade media controls, file upload UX refinement, and route-level loading/error polish
+- analytics depth such as richer metrics, scheduling, and historical reporting polish
 - real mobile feature implementation
 - production hardening, monitoring, and broader automated test coverage

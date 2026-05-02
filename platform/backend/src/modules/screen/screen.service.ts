@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { IsNull, Repository } from 'typeorm';
+import { AnalyticsService } from '../analytics/analytics.service';
 import { ScreenShare } from './screen-share.entity';
 import { StartScreenShareDto } from './screen.dto';
 import { VideoCall } from '../video/video-call.entity';
@@ -19,7 +20,8 @@ export class ScreenService {
     private readonly screenSharesRepository: Repository<ScreenShare>,
     @InjectRepository(VideoCall)
     private readonly videoCallsRepository: Repository<VideoCall>,
-    private readonly roomsService: RoomsService
+    private readonly roomsService: RoomsService,
+    private readonly analyticsService: AnalyticsService
   ) {}
 
   async startShare(dto: StartScreenShareDto, actor: AuthUser) {
@@ -47,6 +49,15 @@ export class ScreenService {
         userId: actor.sub
       })
     );
+
+    await this.analyticsService.recordEvent({
+      companyId: actor.companyId,
+      userId: actor.sub,
+      eventType: 'screen_share.started',
+      entityType: 'screen_share',
+      entityId: share.id,
+      metadata: { callId: dto.callId }
+    });
 
     return { success: true, data: share, error: null, meta: null };
   }

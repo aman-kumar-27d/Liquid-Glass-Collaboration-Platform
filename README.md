@@ -29,14 +29,15 @@ The repository now includes:
 - websocket client wiring for chat room membership, message fanout, presence, typing state, and call join/leave synchronization
 - chat file management UX with staged attachments, authenticated downloads, real staged-file removal, and per-file upload progress mapped to the current file metadata and message `fileIds` flow
 - call and screen-share UX with local media capture, WebRTC offer/answer/candidate signaling, participant media tiles, mic/camera toggles, reconnect-aware signaling recovery, and socket-driven share state
+- analytics and job baseline with usage events, daily snapshots, tenant dashboards, platform stats, worker aggregation, and cleanup tasks
 - Expo mobile scaffold
 - Docker and local infrastructure configuration
 - offline local DB mode for temporary development
 
 Major work still pending:
 
-- analytics and background jobs
 - P2P large-file transfer depth
 - production-grade media controls, fallback states, and richer loading/error states
+- analytics depth such as richer metrics, scheduling, and historical reporting polish
 - real mobile feature implementation
 - production hardening and broader automated tests

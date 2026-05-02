@@ -5,6 +5,7 @@ import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { Repository } from 'typeorm';
 import { UserRole } from '../../common/enums/user-role.enum';
+import { AnalyticsService } from '../analytics/analytics.service';
 import { Company } from '../companies/company.entity';
 import { User } from '../users/user.entity';
 import { LoginDto, RegisterOwnerDto } from './auth.dto';
@@ -27,6 +28,7 @@ export class AuthService {
     private readonly sessionsRepository: Repository<Session>,
     @InjectRepository(AuditLog)
     private readonly auditLogsRepository: Repository<AuditLog>,
+    private readonly analyticsService: AnalyticsService,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService
   ) {}
@@ -65,6 +67,13 @@ export class AuthService {
 
     const tokens = await this.issueSession(user, context);
     await this.writeAudit(company.id, user.id, 'auth.register_owner', 'company', company.id);
+    await this.analyticsService.recordEvent({
+      companyId: company.id,
+      userId: user.id,
+      eventType: 'auth.register_owner',
+      entityType: 'company',
+      entityId: company.id
+    });
 
     return {
       success: true,
@@ -87,6 +96,13 @@ export class AuthService {
 
     const tokens = await this.issueSession(user, context);
     await this.writeAudit(user.companyId, user.id, 'auth.login', 'session');
+    await this.analyticsService.recordEvent({
+      companyId: user.companyId,
+      userId: user.id,
+      eventType: 'auth.login',
+      entityType: 'user',
+      entityId: user.id
+    });
 
     return {
       success: true,

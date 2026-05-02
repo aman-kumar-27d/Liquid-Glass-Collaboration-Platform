@@ -38,6 +38,11 @@ export class MasterController {
     return this.masterService.listRedeemCodes();
   }
 
+  @Get('system-stats')
+  getSystemStats() {
+    return this.masterService.getSystemStats();
+  }
+
   @Post('redeem-codes')
   createRedeemCode(@Body() dto: CreateRedeemCodeDto) {
     return this.masterService.createRedeemCode(dto);
