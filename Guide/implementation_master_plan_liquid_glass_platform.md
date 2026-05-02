@@ -55,8 +55,8 @@ Implemented now:
   - landing page
   - auth surface with live login and owner registration
   - workspace dashboard with live room and subscription reads
-  - chat workspace with live room reads, room creation, and text message sending
-  - calls workspace with live active-call reads plus start, join, and leave actions
+  - chat workspace with live room reads, room creation, text message sending, websocket room join, presence, and typing state
+  - calls workspace with live active-call reads plus start, join, leave, and websocket call-room synchronization
   - admin workspace with live tenant user and room reads plus user activation toggles
   - billing workspace with live plan reads plus change-plan, coupon, and redeem-code actions
 
@@ -64,6 +64,6 @@ Still pending:
 
 - P2P large-file transfer and transfer-state workflows
 - analytics and background jobs
-- websocket-driven realtime state wiring, file upload UX, and route-level loading/error polish
+- deeper call signaling, file upload UX, and route-level loading/error polish
 - real mobile feature implementation
 - production hardening, monitoring, and broader automated test coverage

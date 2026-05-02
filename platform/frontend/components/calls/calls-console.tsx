@@ -2,12 +2,15 @@
 
 import { useEffect, useEffectEvent, useState } from 'react';
 import { useAuthSession } from '@/hooks/use-auth-session';
+import { useRealtimeSocket } from '@/hooks/use-realtime-socket';
 import { apiRequest } from '@/lib/api-client';
-import { RoomRecord, VideoCallRecord } from '@/lib/types';
+import { emitWithAck } from '@/lib/realtime-client';
+import { ApiEnvelope, CallParticipantRecord, RoomRecord, VideoCallRecord } from '@/lib/types';
 import { GlassCard } from '../liquid-glass/glass-card';
 
 export function CallsConsole() {
   const { ready, session, setSession } = useAuthSession();
+  const { socket, status: socketStatus, connectionError } = useRealtimeSocket(session);
   const [rooms, setRooms] = useState<RoomRecord[]>([]);
   const [activeRoomId, setActiveRoomId] = useState<string | null>(null);
   const [activeCall, setActiveCall] = useState<VideoCallRecord | null>(null);
@@ -89,6 +92,11 @@ export function CallsConsole() {
     });
 
     setActiveCall(envelope.data);
+    if (socket && socketStatus === 'connected') {
+      await emitWithAck<ApiEnvelope<CallParticipantRecord>, { callId: string }>(socket, 'call.join', {
+        callId: envelope.data.id
+      });
+    }
   };
 
   const joinCall = async () => {
@@ -96,13 +104,19 @@ export function CallsConsole() {
       return;
     }
 
-    await apiRequest(`/calls/join`, {
-      method: 'POST',
-      body: { callId: activeCall.id },
-      requiresAuth: true,
-      session,
-      onSessionChange: setSession
-    });
+    if (socket && socketStatus === 'connected') {
+      await emitWithAck<ApiEnvelope<CallParticipantRecord>, { callId: string }>(socket, 'call.join', {
+        callId: activeCall.id
+      });
+    } else {
+      await apiRequest(`/calls/join`, {
+        method: 'POST',
+        body: { callId: activeCall.id },
+        requiresAuth: true,
+        session,
+        onSessionChange: setSession
+      });
+    }
 
     await loadActiveCall();
   };
@@ -112,15 +126,81 @@ export function CallsConsole() {
       return;
     }
 
-    await apiRequest(`/calls/${activeCall.id}/leave`, {
+    if (socket && socketStatus === 'connected') {
+      await emitWithAck<ApiEnvelope<CallParticipantRecord>, { callId: string }>(socket, 'call.leave', {
+        callId: activeCall.id
+      });
+    } else {
+      await apiRequest(`/calls/${activeCall.id}/leave`, {
+        method: 'POST',
+        requiresAuth: true,
+        session,
+        onSessionChange: setSession
+      });
+    }
+
+    await loadActiveCall();
+  };
+
+  const endCall = async () => {
+    if (!session || !activeCall) {
+      return;
+    }
+
+    await apiRequest(`/calls/${activeCall.id}/end`, {
       method: 'POST',
       requiresAuth: true,
       session,
       onSessionChange: setSession
     });
 
-    await loadActiveCall();
+    setActiveCall(null);
   };
+
+  useEffect(() => {
+    if (!socket) {
+      return;
+    }
+
+    const onCallJoined = (payload: CallParticipantRecord) => {
+      setActiveCall((current) => {
+        if (!current || current.id !== payload.callId) {
+          return current;
+        }
+
+        const participants = current.participants.some((participant) => participant.id === payload.id)
+          ? current.participants.map((participant) =>
+              participant.id === payload.id ? payload : participant
+            )
+          : [...current.participants, payload];
+
+        return { ...current, participants };
+      });
+    };
+
+    const onCallLeft = (payload: CallParticipantRecord) => {
+      setActiveCall((current) => {
+        if (!current || current.id !== payload.callId) {
+          return current;
+        }
+
+        return {
+          ...current,
+          participants: current.participants.map((participant) =>
+            participant.id === payload.id ? payload : participant
+          )
+        };
+      });
+    };
+
+    socket.on('call.joined', onCallJoined);
+    socket.on('call.left', onCallLeft);
+
+    return () => {
+      socket.off('call.joined', onCallJoined);
+      socket.off('call.left', onCallLeft);
+    };
+  }, [socket]);
 
   if (!ready) {
     return <div className="text-sm text-white/70">Loading session...</div>;
@@ -158,12 +238,15 @@ export function CallsConsole() {
           <div className="text-sm uppercase tracking-[0.28em] text-white/60">Call State</div>
           <div className="mt-4 space-y-3 text-sm text-white/75">
             <div>Selected room: {rooms.find((room) => room.id === activeRoomId)?.name ?? 'None'}</div>
-            <div>Call status: {activeCall ? 'active' : loading ? 'loading' : 'idle'}</div>
+            <div>
+              Call status: {activeCall ? 'active' : loading ? 'loading' : 'idle'} | socket {socketStatus}
+            </div>
             <div>
               Participants:{' '}
               {activeCall?.participants.filter((participant) => !participant.leftAt).length ?? 0}
             </div>
             {error ? <div className="text-rose-100">{error}</div> : null}
+            {connectionError ? <div className="text-amber-100">{connectionError}</div> : null}
           </div>
         </GlassCard>
 
@@ -192,6 +275,14 @@ export function CallsConsole() {
               className="rounded-full border border-white/14 px-4 py-2 text-sm text-white/75 disabled:cursor-not-allowed disabled:opacity-60"
             >
               Leave
+            </button>
+            <button
+              type="button"
+              onClick={() => void endCall()}
+              disabled={!activeCall}
+              className="rounded-full border border-white/14 px-4 py-2 text-sm text-white/75 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              End
             </button>
           </div>
         </GlassCard>
