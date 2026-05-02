@@ -3,9 +3,9 @@
 import { useEffect, useEffectEvent, useRef, useState } from 'react';
 import { useAuthSession } from '@/hooks/use-auth-session';
 import { useRealtimeSocket } from '@/hooks/use-realtime-socket';
-import { apiRequest } from '@/lib/api-client';
+import { apiRequest, uploadFormRequest } from '@/lib/api-client';
 import { emitWithAck } from '@/lib/realtime-client';
-import { ApiEnvelope, MessageReaction, MessageRecord, RoomRecord } from '@/lib/types';
+import { ApiEnvelope, MessageReaction, MessageRecord, RoomRecord, StoredFile } from '@/lib/types';
 import { ChannelList } from './channel-list';
 import { ChatFeed } from './chat-feed';
 import { PresencePanel } from './presence-panel';
@@ -17,7 +17,9 @@ export function ChatWorkspace() {
   const [activeRoomId, setActiveRoomId] = useState<string | null>(null);
   const [activeRoom, setActiveRoom] = useState<RoomRecord | null>(null);
   const [messages, setMessages] = useState<MessageRecord[]>([]);
+  const [attachments, setAttachments] = useState<StoredFile[]>([]);
   const [draft, setDraft] = useState('');
+  const [fileUploading, setFileUploading] = useState(false);
   const [loading, setLoading] = useState(false);
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -70,6 +72,7 @@ export function ChatWorkspace() {
 
       setActiveRoom(roomEnvelope.data);
       setMessages(messagesEnvelope.data);
+      setAttachments([]);
     } catch (requestError) {
       const message =
         requestError instanceof Error ? requestError.message : 'Failed to load room data';
@@ -124,7 +127,7 @@ export function ChatWorkspace() {
   };
 
   const sendMessage = async () => {
-    if (!session || !activeRoomId || !draft.trim()) {
+    if (!session || !activeRoomId || (!draft.trim() && !attachments.length)) {
       return;
     }
 
@@ -132,13 +135,17 @@ export function ChatWorkspace() {
     setError(null);
 
     try {
-      const envelope = await apiRequest<MessageRecord, { roomId: string; content: string; type: string }>(
+      const envelope = await apiRequest<
+        MessageRecord,
+        { roomId: string; content: string; fileIds?: string[]; type: string }
+      >(
         '/messages',
         {
           method: 'POST',
           body: {
             roomId: activeRoomId,
-            content: draft.trim(),
+            content: draft.trim() || 'File attachment',
+            fileIds: attachments.map((file) => file.id),
             type: 'text'
           },
           requiresAuth: true,
@@ -149,6 +156,7 @@ export function ChatWorkspace() {
 
       setMessages((current) => [...current, envelope.data]);
       setDraft('');
+      setAttachments([]);
     } catch (requestError) {
       const message =
         requestError instanceof Error ? requestError.message : 'Failed to send message';
@@ -156,6 +164,40 @@ export function ChatWorkspace() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const uploadFiles = async (files: FileList | null) => {
+    if (!session || !activeRoomId || !files?.length) {
+      return;
+    }
+
+    setFileUploading(true);
+    setError(null);
+
+    try {
+      const uploadedFiles: StoredFile[] = [];
+
+      for (const file of Array.from(files)) {
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('roomId', activeRoomId);
+
+        const envelope = await uploadFormRequest<StoredFile>('/files/upload', formData, session, setSession);
+        uploadedFiles.push(envelope.data);
+      }
+
+      setAttachments((current) => [...current, ...uploadedFiles]);
+    } catch (requestError) {
+      const message =
+        requestError instanceof Error ? requestError.message : 'Failed to upload file';
+      setError(message);
+    } finally {
+      setFileUploading(false);
+    }
+  };
+
+  const removeAttachment = (fileId: string) => {
+    setAttachments((current) => current.filter((file) => file.id !== fileId));
   };
 
   const upsertMessage = useEffectEvent((nextMessage: MessageRecord) => {
@@ -338,12 +380,16 @@ export function ChatWorkspace() {
         />
         <ChatFeed
           activeRoom={activeRoom}
+          attachments={attachments}
           draft={draft}
+          fileUploading={fileUploading}
           loading={loading}
           messages={messages}
           onDraftChange={setDraft}
+          onFileSelect={(files) => void uploadFiles(files)}
+          onRemoveAttachment={removeAttachment}
           onSend={async () => {
-            if (!session || !activeRoomId || !draft.trim()) {
+            if (!session || !activeRoomId || (!draft.trim() && !attachments.length)) {
               return;
             }
 
@@ -352,16 +398,22 @@ export function ChatWorkspace() {
 
             try {
               if (socket && socketStatus === 'connected') {
-                await emitWithAck<ApiEnvelope<MessageRecord>, { content: string; roomId: string; type: string }>(
+                const envelope = await emitWithAck<
+                  ApiEnvelope<MessageRecord>,
+                  { content: string; fileIds?: string[]; roomId: string; type: string }
+                >(
                   socket,
                   'message.create',
                   {
                     roomId: activeRoomId,
-                    content: draft.trim(),
+                    content: draft.trim() || 'File attachment',
+                    fileIds: attachments.map((file) => file.id),
                     type: 'text'
                   }
                 );
+                setMessages((current) => [...current, envelope.data]);
                 setDraft('');
+                setAttachments([]);
                 return;
               }
 

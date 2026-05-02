@@ -1,24 +1,32 @@
 'use client';
 
 import { FormEvent } from 'react';
-import { MessageRecord, RoomRecord } from '@/lib/types';
+import { MessageRecord, RoomRecord, StoredFile } from '@/lib/types';
 import { GlassCard } from '../liquid-glass/glass-card';
 
 interface ChatFeedProps {
   activeRoom: RoomRecord | null;
+  attachments: StoredFile[];
   draft: string;
+  fileUploading: boolean;
   loading: boolean;
   messages: MessageRecord[];
   onDraftChange: (value: string) => void;
+  onFileSelect: (files: FileList | null) => void;
+  onRemoveAttachment: (fileId: string) => void;
   onSend: () => Promise<void>;
 }
 
 export function ChatFeed({
   activeRoom,
+  attachments,
   draft,
+  fileUploading,
   loading,
   messages,
   onDraftChange,
+  onFileSelect,
+  onRemoveAttachment,
   onSend
 }: ChatFeedProps) {
   const submit = async (event: FormEvent<HTMLFormElement>) => {
@@ -64,6 +72,20 @@ export function ChatFeed({
       </div>
 
       <form className="mt-5 space-y-3" onSubmit={submit}>
+        {attachments.length ? (
+          <div className="flex flex-wrap gap-2">
+            {attachments.map((file) => (
+              <button
+                key={file.id}
+                type="button"
+                onClick={() => onRemoveAttachment(file.id)}
+                className="rounded-full border border-cyan-300/20 bg-cyan-300/10 px-3 py-2 text-xs text-cyan-100"
+              >
+                {file.originalName} x
+              </button>
+            ))}
+          </div>
+        ) : null}
         <textarea
           value={draft}
           onChange={(event) => onDraftChange(event.target.value)}
@@ -72,13 +94,25 @@ export function ChatFeed({
           rows={4}
           className="w-full rounded-3xl border border-white/12 bg-white/8 px-4 py-4 text-sm text-white outline-none transition focus:border-cyan-300/30 disabled:cursor-not-allowed disabled:opacity-60"
         />
-        <button
-          type="submit"
-          disabled={!activeRoom || !draft.trim() || loading}
-          className="rounded-2xl border border-white/14 bg-white/10 px-4 py-3 text-sm text-white disabled:cursor-not-allowed disabled:opacity-60"
-        >
-          {loading ? 'Sending...' : 'Send Message'}
-        </button>
+        <div className="flex flex-wrap gap-3">
+          <label className="rounded-2xl border border-white/14 bg-white/10 px-4 py-3 text-sm text-white">
+            <input
+              type="file"
+              multiple
+              onChange={(event) => onFileSelect(event.target.files)}
+              disabled={!activeRoom || fileUploading || loading}
+              className="hidden"
+            />
+            {fileUploading ? 'Uploading...' : 'Attach Files'}
+          </label>
+          <button
+            type="submit"
+            disabled={!activeRoom || (!draft.trim() && !attachments.length) || loading || fileUploading}
+            className="rounded-2xl border border-white/14 bg-white/10 px-4 py-3 text-sm text-white disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {loading ? 'Sending...' : 'Send Message'}
+          </button>
+        </div>
       </form>
     </GlassCard>
   );

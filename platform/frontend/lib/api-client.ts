@@ -25,6 +25,8 @@ function getApiBaseUrl() {
   return process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, '') ?? DEFAULT_API_BASE_URL;
 }
 
+export { getApiBaseUrl };
+
 function buildHeaders(session: AuthSession | null, body?: unknown) {
   const headers = new Headers();
 
@@ -125,4 +127,41 @@ export async function apiRequest<TResponse, TBody = undefined>(
 
 export function createSessionFromAuthResponse(data: any, previousSession?: AuthSession | null) {
   return normalizeSession(data, previousSession);
+}
+
+export async function uploadFormRequest<TResponse>(
+  path: string,
+  formData: FormData,
+  session: AuthSession,
+  onSessionChange?: (session: AuthSession | null) => void
+): Promise<ApiEnvelope<TResponse>> {
+  let activeSession = session;
+
+  const execute = async () => {
+    const response = await fetch(`${getApiBaseUrl()}${path}`, {
+      method: 'POST',
+      headers: activeSession?.tokens.accessToken
+        ? {
+            Authorization: `Bearer ${activeSession.tokens.accessToken}`
+          }
+        : undefined,
+      body: formData
+    });
+
+    const envelope = await parseEnvelope<TResponse>(response);
+    return { response, envelope };
+  };
+
+  let { response, envelope } = await execute();
+
+  if (response.status === 401 && activeSession.tokens.refreshToken) {
+    activeSession = await refreshSession(activeSession, onSessionChange);
+    ({ response, envelope } = await execute());
+  }
+
+  if (!response.ok || !envelope.success) {
+    throw new ApiClientError(envelope.error ?? 'Upload failed', response.status);
+  }
+
+  return envelope;
 }

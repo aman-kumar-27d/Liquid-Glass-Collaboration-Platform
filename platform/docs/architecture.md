@@ -27,7 +27,7 @@
 - `/`: project landing page
 - `/auth`: live login and owner-registration shell using local token storage for temporary development
 - `/workspace`: tenant overview dashboard with live room and subscription reads
-- `/workspace/chat`: room and message workspace with room creation, websocket room join, live message fanout, presence, and typing state
+- `/workspace/chat`: room and message workspace with room creation, staged file uploads, websocket room join, live message fanout, presence, and typing state
 - `/workspace/calls`: active-call inspection, call start/join/leave actions, and websocket call-room synchronization
 - `/workspace/admin`: tenant admin reads with user activation toggles
 - `/workspace/billing`: subscription reads with plan change, coupon, and redeem-code actions

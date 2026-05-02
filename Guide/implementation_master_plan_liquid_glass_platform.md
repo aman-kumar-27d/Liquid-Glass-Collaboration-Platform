@@ -55,7 +55,7 @@ Implemented now:
   - landing page
   - auth surface with live login and owner registration
   - workspace dashboard with live room and subscription reads
-  - chat workspace with live room reads, room creation, text message sending, websocket room join, presence, and typing state
+  - chat workspace with live room reads, room creation, staged file uploads, text message sending, websocket room join, presence, and typing state
   - calls workspace with live active-call reads plus start, join, leave, and websocket call-room synchronization
   - admin workspace with live tenant user and room reads plus user activation toggles
   - billing workspace with live plan reads plus change-plan, coupon, and redeem-code actions

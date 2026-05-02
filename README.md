@@ -27,6 +27,7 @@ The repository now includes:
 - backend foundations through the Phase 7 baseline: auth, tenancy, rooms, messaging, files, calls, admin, and subscription APIs
 - a Phase 8 web baseline with live auth/session handling plus dashboard, chat, calls, admin, and billing workspace flows wired to the current backend APIs
 - websocket client wiring for chat room membership, message fanout, presence, typing state, and call join/leave synchronization
+- chat file upload UX with staged attachments mapped to the current file metadata and message `fileIds` flow
 - Expo mobile scaffold
 - Docker and local infrastructure configuration
 - offline local DB mode for temporary development
