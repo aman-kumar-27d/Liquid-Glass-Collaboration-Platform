@@ -56,7 +56,7 @@ Implemented now:
   - auth surface with live login and owner registration
   - workspace dashboard with live room and subscription reads
   - chat workspace with live room reads, room creation, staged file uploads, per-file upload progress, staged attachment removal, authenticated downloads, text message sending, websocket room join, presence, and typing state
-  - calls workspace with live active-call reads plus start, join, leave, local media capture, WebRTC offer/answer/candidate signaling, participant media tiles, screen-share start/stop, and websocket call-room synchronization
+  - calls workspace with live active-call reads plus start, join, leave, local media capture, mic/camera toggles, reconnect-aware signaling recovery, WebRTC offer/answer/candidate signaling, participant media tiles, screen-share start/stop, and websocket call-room synchronization
   - admin workspace with live tenant user and room reads plus user activation toggles
   - billing workspace with live plan reads plus change-plan, coupon, and redeem-code actions
 

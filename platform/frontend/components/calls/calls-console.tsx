@@ -26,6 +26,10 @@ export function CallsConsole() {
   const [remoteStreams, setRemoteStreams] = useState<Record<string, MediaStream>>({});
   const [activeScreenShare, setActiveScreenShare] = useState<ScreenShareRecord | null>(null);
   const [mediaReady, setMediaReady] = useState(false);
+  const [cameraEnabled, setCameraEnabled] = useState(true);
+  const [microphoneEnabled, setMicrophoneEnabled] = useState(true);
+  const [callNotice, setCallNotice] = useState<string | null>(null);
+  const [peerConnectionStates, setPeerConnectionStates] = useState<Record<string, string>>({});
   const peerConnectionsRef = useRef<Map<string, RTCPeerConnection>>(new Map());
   const offeredTargetsRef = useRef<Set<string>>(new Set());
   const cameraStreamRef = useRef<MediaStream | null>(null);
@@ -69,6 +73,7 @@ export function CallsConsole() {
       setActiveCall(envelope.data);
       if (!envelope.data) {
         setActiveScreenShare(null);
+        setCallNotice(null);
         offeredTargetsRef.current.clear();
       }
     } catch (requestError) {
@@ -89,6 +94,7 @@ export function CallsConsole() {
     peerConnectionsRef.current.clear();
     offeredTargetsRef.current.clear();
     setRemoteStreams({});
+    setPeerConnectionStates({});
   });
 
   const teardownMedia = useEffectEvent(() => {
@@ -98,7 +104,10 @@ export function CallsConsole() {
     cameraStreamRef.current = null;
     setLocalStream(null);
     setMediaReady(false);
+    setCameraEnabled(true);
+    setMicrophoneEnabled(true);
     setActiveScreenShare(null);
+    setCallNotice(null);
     resetPeerConnections();
   });
 
@@ -116,6 +125,12 @@ export function CallsConsole() {
 
   const ensureLocalMedia = useEffectEvent(async () => {
     if (cameraStreamRef.current) {
+      cameraStreamRef.current.getAudioTracks().forEach((track) => {
+        track.enabled = microphoneEnabled;
+      });
+      cameraStreamRef.current.getVideoTracks().forEach((track) => {
+        track.enabled = cameraEnabled;
+      });
       setLocalStream(displayStreamRef.current ?? cameraStreamRef.current);
       setMediaReady(true);
       return cameraStreamRef.current;
@@ -129,9 +144,16 @@ export function CallsConsole() {
       audio: true,
       video: true
     });
+    stream.getAudioTracks().forEach((track) => {
+      track.enabled = microphoneEnabled;
+    });
+    stream.getVideoTracks().forEach((track) => {
+      track.enabled = cameraEnabled;
+    });
     cameraStreamRef.current = stream;
     setLocalStream(stream);
     setMediaReady(true);
+    setCallNotice(null);
     return stream;
   });
 
@@ -167,6 +189,24 @@ export function CallsConsole() {
         ...current,
         [remoteUserId]: stream
       }));
+    };
+
+    connection.onconnectionstatechange = () => {
+      const nextState = connection.connectionState;
+      setPeerConnectionStates((current) => ({
+        ...current,
+        [remoteUserId]: nextState
+      }));
+
+      if (nextState === 'failed') {
+        setCallNotice(`Peer connection degraded for ${remoteUserId}.`);
+      }
+    };
+
+    connection.oniceconnectionstatechange = () => {
+      if (connection.iceConnectionState === 'failed') {
+        setCallNotice(`ICE negotiation failed for ${remoteUserId}.`);
+      }
     };
 
     const sourceStream = displayStreamRef.current ?? cameraStreamRef.current;
@@ -227,6 +267,20 @@ export function CallsConsole() {
   }, [activeCall?.id]);
 
   useEffect(() => {
+    if (!activeCall || !joinedCall) {
+      return;
+    }
+
+    if (socketStatus === 'disconnected') {
+      setCallNotice('Realtime connection lost. Reconnecting call signaling...');
+    }
+
+    if (socketStatus === 'connected') {
+      setCallNotice(null);
+    }
+  }, [socketStatus, activeCall, joinedCall]);
+
+  useEffect(() => {
     if (!socket || !activeCall || !joinedCall || !mediaReady) {
       return;
     }
@@ -242,6 +296,22 @@ export function CallsConsole() {
     }
   }, [socket, activeCall, joinedCall, mediaReady, session?.user.id, createOfferFor]);
 
+  useEffect(() => {
+    if (!socket || socketStatus !== 'connected' || !activeCall || !joinedCall) {
+      return;
+    }
+
+    void emitWithAck<ApiEnvelope<CallParticipantRecord>, { callId: string }>(socket, 'call.join', {
+      callId: activeCall.id
+    })
+      .then(() => loadActiveCall())
+      .catch((requestError) => {
+        const message =
+          requestError instanceof Error ? requestError.message : 'Failed to restore call signaling';
+        setCallNotice(message);
+      });
+  }, [socket, socketStatus, activeCall?.id, joinedCall, loadActiveCall]);
+
   const startCall = async () => {
     if (!session || !activeRoomId) {
       return;
@@ -249,6 +319,7 @@ export function CallsConsole() {
 
     try {
       await ensureLocalMedia();
+      setCallNotice(null);
       const envelope = await apiRequest<VideoCallRecord, { roomId: string }>('/calls/start', {
         method: 'POST',
         body: { roomId: activeRoomId },
@@ -278,6 +349,7 @@ export function CallsConsole() {
 
     try {
       await ensureLocalMedia();
+      setCallNotice(null);
 
       if (socket && socketStatus === 'connected') {
         await emitWithAck<ApiEnvelope<CallParticipantRecord>, { callId: string }>(socket, 'call.join', {
@@ -351,6 +423,36 @@ export function CallsConsole() {
     }
   };
 
+  const toggleMicrophone = () => {
+    const nextEnabled = !microphoneEnabled;
+    cameraStreamRef.current?.getAudioTracks().forEach((track) => {
+      track.enabled = nextEnabled;
+    });
+    displayStreamRef.current?.getAudioTracks().forEach((track) => {
+      track.enabled = nextEnabled;
+    });
+    setMicrophoneEnabled(nextEnabled);
+  };
+
+  const toggleCamera = () => {
+    const nextEnabled = !cameraEnabled;
+    cameraStreamRef.current?.getVideoTracks().forEach((track) => {
+      track.enabled = nextEnabled;
+    });
+
+    if (!displayStreamRef.current) {
+      peerConnectionsRef.current.forEach((connection) => {
+        const sender = connection.getSenders().find((item) => item.track?.kind === 'video');
+        const track = cameraStreamRef.current?.getVideoTracks()[0] ?? null;
+        if (sender) {
+          void sender.replaceTrack(nextEnabled ? track : null);
+        }
+      });
+    }
+
+    setCameraEnabled(nextEnabled);
+  };
+
   const startScreenShare = async () => {
     if (!session || !activeCall) {
       return;
@@ -403,6 +505,7 @@ export function CallsConsole() {
       }
 
       setActiveScreenShare(share);
+      setCallNotice(null);
     } catch (requestError) {
       const message =
         requestError instanceof Error ? requestError.message : 'Failed to start screen share';
@@ -442,6 +545,7 @@ export function CallsConsole() {
         }
       });
       setLocalStream(cameraStream);
+      setCallNotice(null);
     } catch (requestError) {
       const message =
         requestError instanceof Error ? requestError.message : 'Failed to stop screen share';
@@ -488,6 +592,11 @@ export function CallsConsole() {
         const connection = peerConnectionsRef.current.get(payload.userId);
         connection?.close();
         peerConnectionsRef.current.delete(payload.userId);
+        setPeerConnectionStates((current) => {
+          const clone = { ...current };
+          delete clone[payload.userId];
+          return clone;
+        });
         setRemoteStreams((current) => {
           const clone = { ...current };
           delete clone[payload.userId];
@@ -502,7 +611,12 @@ export function CallsConsole() {
       targetUserId: string;
       sdp: RTCSessionDescriptionInit;
     }) => {
-      if (!session || payload.targetUserId !== session.user.id || !activeCall || payload.callId !== activeCall.id) {
+      if (
+        !session ||
+        payload.targetUserId !== session.user.id ||
+        !activeCall ||
+        payload.callId !== activeCall.id
+      ) {
         return;
       }
 
@@ -524,7 +638,12 @@ export function CallsConsole() {
       targetUserId: string;
       sdp: RTCSessionDescriptionInit;
     }) => {
-      if (!session || payload.targetUserId !== session.user.id || !activeCall || payload.callId !== activeCall.id) {
+      if (
+        !session ||
+        payload.targetUserId !== session.user.id ||
+        !activeCall ||
+        payload.callId !== activeCall.id
+      ) {
         return;
       }
 
@@ -538,7 +657,12 @@ export function CallsConsole() {
       targetUserId: string;
       candidate: RTCIceCandidateInit;
     }) => {
-      if (!session || payload.targetUserId !== session.user.id || !activeCall || payload.callId !== activeCall.id) {
+      if (
+        !session ||
+        payload.targetUserId !== session.user.id ||
+        !activeCall ||
+        payload.callId !== activeCall.id
+      ) {
         return;
       }
 
@@ -575,13 +699,7 @@ export function CallsConsole() {
       socket.off('screen.started', onScreenStarted);
       socket.off('screen.stopped', onScreenStopped);
     };
-  }, [
-    socket,
-    session,
-    activeCall,
-    ensureLocalMedia,
-    ensurePeerConnection
-  ]);
+  }, [socket, session, activeCall, ensureLocalMedia, ensurePeerConnection]);
 
   useEffect(() => () => teardownMedia(), [teardownMedia]);
 
@@ -622,7 +740,14 @@ export function CallsConsole() {
           <VideoTile
             label={activeScreenShare?.userId === session.user.id ? 'You are sharing screen' : 'Local Preview'}
             stream={localStream}
-            subtitle={mediaReady ? 'Camera or shared display ready' : 'Media idle'}
+            subtitle={
+              mediaReady
+                ? `Mic ${microphoneEnabled ? 'on' : 'muted'} | Camera ${
+                    displayStreamRef.current ? 'screen' : cameraEnabled ? 'on' : 'off'
+                  }`
+                : 'Media idle'
+            }
+            muted
           />
           {activeParticipants
             .filter((participant) => participant.userId !== session.user.id)
@@ -631,7 +756,11 @@ export function CallsConsole() {
                 key={participant.id}
                 label={participant.userId}
                 stream={remoteStreams[participant.userId] ?? null}
-                subtitle={remoteStreams[participant.userId] ? 'Remote media connected' : 'Awaiting media'}
+                subtitle={
+                  remoteStreams[participant.userId]
+                    ? peerConnectionStates[participant.userId] ?? 'remote media connected'
+                    : peerConnectionStates[participant.userId] ?? 'awaiting media'
+                }
               />
             ))}
         </div>
@@ -649,7 +778,11 @@ export function CallsConsole() {
             <div>
               Screen share: {activeScreenShare ? `active by ${activeScreenShare.userId}` : 'inactive'}
             </div>
+            <div>
+              Media: mic {microphoneEnabled ? 'on' : 'muted'} | camera {cameraEnabled ? 'on' : 'off'}
+            </div>
             {error ? <div className="text-rose-100">{error}</div> : null}
+            {callNotice ? <div className="text-amber-100">{callNotice}</div> : null}
             {connectionError ? <div className="text-amber-100">{connectionError}</div> : null}
           </div>
         </GlassCard>
@@ -690,6 +823,22 @@ export function CallsConsole() {
             </button>
             <button
               type="button"
+              onClick={toggleMicrophone}
+              disabled={!mediaReady}
+              className="rounded-full border border-white/14 px-4 py-2 text-sm text-white/75 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {microphoneEnabled ? 'Mute Mic' : 'Unmute Mic'}
+            </button>
+            <button
+              type="button"
+              onClick={toggleCamera}
+              disabled={!mediaReady || Boolean(displayStreamRef.current)}
+              className="rounded-full border border-white/14 px-4 py-2 text-sm text-white/75 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {cameraEnabled ? 'Turn Camera Off' : 'Turn Camera On'}
+            </button>
+            <button
+              type="button"
               onClick={() => void startScreenShare()}
               disabled={!activeCall || !joinedCall || Boolean(activeScreenShare)}
               className="rounded-full border border-white/14 px-4 py-2 text-sm text-white/75 disabled:cursor-not-allowed disabled:opacity-60"
@@ -713,10 +862,12 @@ export function CallsConsole() {
 
 function VideoTile({
   label,
+  muted = false,
   stream,
   subtitle
 }: {
   label: string;
+  muted?: boolean;
   stream: MediaStream | null;
   subtitle: string;
 }) {
@@ -739,7 +890,7 @@ function VideoTile({
         <video
           ref={videoRef}
           autoPlay
-          muted
+          muted={muted}
           playsInline
           className="h-48 w-full object-cover"
         />
