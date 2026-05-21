@@ -22,4 +22,9 @@ export class AnalyticsController {
   getUsageSummary(@CurrentUser() user: any, @Query() query: UsageSummaryQueryDto) {
     return this.analyticsService.getUsageSummary(user, query);
   }
+
+  @Get('usage-comparison')
+  getUsageComparison(@CurrentUser() user: any, @Query() query: UsageSummaryQueryDto) {
+    return this.analyticsService.getUsageComparison(user, query);
+  }
 }

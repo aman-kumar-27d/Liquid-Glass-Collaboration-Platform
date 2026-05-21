@@ -7,6 +7,8 @@ import { useAuthSession } from '@/hooks/use-auth-session';
 import { apiRequest } from '@/lib/api-client';
 import {
   AnalyticsDashboardRecord,
+  PlatformAnalyticsDashboardRecord,
+  UsageComparisonRecord,
   UsageEventRecord,
   UsageSummaryRecord
 } from '@/lib/types';
@@ -26,8 +28,10 @@ interface PlatformStatsRecord {
 
 interface AnalyticsState {
   dashboard: AnalyticsDashboardRecord | null;
+  platformDashboard: PlatformAnalyticsDashboardRecord | null;
   platformStats: PlatformStatsRecord | null;
   usageSummary: UsageSummaryRecord | null;
+  usageComparison: UsageComparisonRecord | null;
 }
 
 const chatRoute = '/workspace/chat' as Route;
@@ -47,6 +51,34 @@ function defaultDateRange() {
   return createDateRange(7);
 }
 
+function addDays(value: string, days: number) {
+  const date = new Date(value);
+  date.setDate(date.getDate() + days);
+  return date.toISOString().slice(0, 10);
+}
+
+function buildCsv(rows: string[][]) {
+  return rows
+    .map((row) =>
+      row
+        .map((cell) => `"${String(cell ?? '').replace(/"/g, '""')}"`)
+        .join(',')
+    )
+    .join('\n');
+}
+
+function triggerDownload(filename: string, content: string, mimeType: string) {
+  const blob = new Blob([content], { type: mimeType });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = filename;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  URL.revokeObjectURL(url);
+}
+
 export function AnalyticsConsole() {
   const { ready, session, setSession } = useAuthSession();
   const [loading, setLoading] = useState(true);
@@ -54,14 +86,18 @@ export function AnalyticsConsole() {
   const [filters, setFilters] = useState(defaultDateRange());
   const [historyFilter, setHistoryFilter] = useState('');
   const [selectedEventType, setSelectedEventType] = useState('all');
+  const [scope, setScope] = useState<'tenant' | 'platform'>('tenant');
   const [state, setState] = useState<AnalyticsState>({
     dashboard: null,
+    platformDashboard: null,
     platformStats: null,
-    usageSummary: null
+    usageSummary: null,
+    usageComparison: null
   });
   const deferredHistoryFilter = useDeferredValue(historyFilter);
 
   const isMasterAdmin = session?.user.role === 'master_admin';
+  const activeScope = isMasterAdmin ? scope : 'tenant';
 
   const loadAnalytics = useEffectEvent(async () => {
     if (!session) {
@@ -73,11 +109,6 @@ export function AnalyticsConsole() {
     setError(null);
 
     try {
-      const dashboardRequest = apiRequest<AnalyticsDashboardRecord>('/analytics/dashboard', {
-        requiresAuth: true,
-        session,
-        onSessionChange: setSession
-      });
       const summaryQuery = new URLSearchParams({
         dateFrom: filters.dateFrom,
         dateTo: filters.dateTo
@@ -87,15 +118,36 @@ export function AnalyticsConsole() {
         summaryQuery.set('eventType', selectedEventType);
       }
 
-      const summaryRequest = apiRequest<UsageSummaryRecord>(
-        `/analytics/usage-summary?${summaryQuery.toString()}`,
+      const summaryPath =
+        activeScope === 'platform'
+          ? `/master/analytics/usage-summary?${summaryQuery.toString()}`
+          : `/analytics/usage-summary?${summaryQuery.toString()}`;
+      const comparisonPath =
+        activeScope === 'platform'
+          ? `/master/analytics/usage-comparison?${summaryQuery.toString()}`
+          : `/analytics/usage-comparison?${summaryQuery.toString()}`;
+      const dashboardPath =
+        activeScope === 'platform' ? '/master/analytics/dashboard' : '/analytics/dashboard';
+
+      const dashboardRequest = apiRequest<AnalyticsDashboardRecord | PlatformAnalyticsDashboardRecord>(
+        dashboardPath,
         {
           requiresAuth: true,
           session,
           onSessionChange: setSession
         }
       );
-      const platformRequest = isMasterAdmin
+      const summaryRequest = apiRequest<UsageSummaryRecord>(summaryPath, {
+        requiresAuth: true,
+        session,
+        onSessionChange: setSession
+      });
+      const comparisonRequest = apiRequest<UsageComparisonRecord>(comparisonPath, {
+        requiresAuth: true,
+        session,
+        onSessionChange: setSession
+      });
+      const platformStatsRequest = isMasterAdmin
         ? apiRequest<PlatformStatsRecord>('/master/system-stats', {
             requiresAuth: true,
             session,
@@ -103,16 +155,26 @@ export function AnalyticsConsole() {
           })
         : Promise.resolve(null);
 
-      const [dashboardEnvelope, summaryEnvelope, platformEnvelope] = await Promise.all([
-        dashboardRequest,
-        summaryRequest,
-        platformRequest
-      ]);
+      const [dashboardEnvelope, summaryEnvelope, comparisonEnvelope, platformStatsEnvelope] =
+        await Promise.all([
+          dashboardRequest,
+          summaryRequest,
+          comparisonRequest,
+          platformStatsRequest
+        ]);
 
       setState({
-        dashboard: dashboardEnvelope.data,
-        platformStats: platformEnvelope?.data ?? null,
-        usageSummary: summaryEnvelope.data
+        dashboard:
+          activeScope === 'tenant'
+            ? (dashboardEnvelope.data as AnalyticsDashboardRecord)
+            : null,
+        platformDashboard:
+          activeScope === 'platform'
+            ? (dashboardEnvelope.data as PlatformAnalyticsDashboardRecord)
+            : null,
+        platformStats: platformStatsEnvelope?.data ?? null,
+        usageSummary: summaryEnvelope.data,
+        usageComparison: comparisonEnvelope.data
       });
     } catch (requestError) {
       const message =
@@ -129,64 +191,82 @@ export function AnalyticsConsole() {
     }
 
     void loadAnalytics();
-  }, [ready, session, filters, selectedEventType, loadAnalytics]);
+  }, [ready, session, filters, selectedEventType, activeScope, loadAnalytics]);
+
+  const activeDashboard = activeScope === 'platform' ? state.platformDashboard : state.dashboard;
+  const currentMetrics = activeDashboard?.current;
+  const tenantMetrics = activeScope === 'tenant' ? state.dashboard?.current : null;
+  const platformMetrics = activeScope === 'platform' ? state.platformDashboard?.current : null;
+  const recentEvents = activeDashboard?.recentEvents ?? [];
+  const latestSnapshot = activeDashboard?.latestSnapshot ?? null;
 
   const filteredRecentEvents = useMemo(() => {
     const query = deferredHistoryFilter.trim().toLowerCase();
-    const events = state.dashboard?.recentEvents ?? [];
     const focusedEvents =
       selectedEventType === 'all'
-        ? events
-        : events.filter((event) => event.eventType === selectedEventType);
+        ? recentEvents
+        : recentEvents.filter((event) => event.eventType === selectedEventType);
 
     if (!query) {
       return focusedEvents;
     }
 
     return focusedEvents.filter((event) => {
-      const haystack = [
-        event.eventType,
-        event.entityType ?? '',
-        event.entityId ?? ''
-      ]
+      const haystack = [event.eventType, event.entityType ?? '', event.entityId ?? '', event.companyId ?? '']
         .join(' ')
         .toLowerCase();
 
       return haystack.includes(query);
     });
-  }, [deferredHistoryFilter, state.dashboard?.recentEvents]);
+  }, [deferredHistoryFilter, recentEvents, selectedEventType]);
 
-  const historySeries = useMemo(() => {
-    return filteredRecentEvents
-      .slice()
-      .reverse()
-      .map((event, index) => ({
-        label: `${index + 1}`,
-        value: 1,
-        description: event.eventType
-      }));
-  }, [filteredRecentEvents]);
+  const historySeries = useMemo(
+    () =>
+      filteredRecentEvents
+        .slice()
+        .reverse()
+        .map((event, index) => ({
+          label: `${index + 1}`,
+          value: 1,
+          description: event.eventType
+        })),
+    [filteredRecentEvents]
+  );
 
   const topEvents = useMemo(() => {
     const counts = Object.entries(state.usageSummary?.counts ?? {});
     return counts.sort((left, right) => right[1] - left[1]).slice(0, 6);
   }, [state.usageSummary?.counts]);
 
-  const timelineSeries = useMemo(() => {
-    return (state.usageSummary?.timeline ?? []).map((bucket) => ({
-      label: bucket.bucket.slice(5),
-      value: bucket.total,
-      description: `${bucket.total} events`
-    }));
-  }, [state.usageSummary?.timeline]);
+  const timelineSeries = useMemo(
+    () =>
+      (state.usageSummary?.timeline ?? []).map((bucket) => ({
+        label: bucket.bucket.slice(5),
+        value: bucket.total,
+        description: `${bucket.total} events`
+      })),
+    [state.usageSummary?.timeline]
+  );
 
-  const entitySeries = useMemo(() => {
-    return (state.usageSummary?.entityBreakdown ?? []).map((entry) => ({
-      label: entry.label,
-      value: entry.total,
-      description: `${entry.total} events`
-    }));
-  }, [state.usageSummary?.entityBreakdown]);
+  const previousTimelineSeries = useMemo(
+    () =>
+      (state.usageComparison?.previous.timeline ?? []).map((bucket) => ({
+        label: bucket.bucket.slice(5),
+        value: bucket.total,
+        description: `${bucket.total} events`
+      })),
+    [state.usageComparison?.previous.timeline]
+  );
+
+  const entitySeries = useMemo(
+    () =>
+      (state.usageSummary?.entityBreakdown ?? []).map((entry) => ({
+        label: entry.label,
+        value: entry.total,
+        description: `${entry.total} events`
+      })),
+    [state.usageSummary?.entityBreakdown]
+  );
 
   const peakBucket = useMemo(() => {
     const timeline = state.usageSummary?.timeline ?? [];
@@ -209,6 +289,55 @@ export function AnalyticsConsole() {
     return (Number(state.usageSummary?.totalEvents ?? 0) / timeline.length).toFixed(1);
   }, [state.usageSummary?.timeline, state.usageSummary?.totalEvents]);
 
+  const comparisonWindowLabel = useMemo(() => {
+    if (!state.usageComparison) {
+      return 'Previous range unavailable';
+    }
+
+    return `${state.usageComparison.previous.dateFrom.slice(0, 10)} to ${state.usageComparison.previous.dateTo.slice(0, 10)}`;
+  }, [state.usageComparison]);
+
+  const exportCsv = () => {
+    const rows = [
+      ['scope', activeScope],
+      ['date_from', filters.dateFrom],
+      ['date_to', filters.dateTo],
+      ['event_type', selectedEventType],
+      ['total_events', String(state.usageSummary?.totalEvents ?? 0)],
+      [],
+      ['bucket', 'total']
+    ];
+
+    for (const bucket of state.usageSummary?.timeline ?? []) {
+      rows.push([bucket.bucket, String(bucket.total)]);
+    }
+
+    triggerDownload(
+      `analytics-${activeScope}-${filters.dateFrom}-${filters.dateTo}.csv`,
+      buildCsv(rows),
+      'text/csv;charset=utf-8'
+    );
+  };
+
+  const exportJson = () => {
+    triggerDownload(
+      `analytics-${activeScope}-${filters.dateFrom}-${filters.dateTo}.json`,
+      JSON.stringify(
+        {
+          scope: activeScope,
+          filters,
+          selectedEventType,
+          summary: state.usageSummary,
+          comparison: state.usageComparison,
+          dashboard: activeDashboard
+        },
+        null,
+        2
+      ),
+      'application/json;charset=utf-8'
+    );
+  };
+
   if (!ready) {
     return (
       <GlassCard>
@@ -225,8 +354,6 @@ export function AnalyticsConsole() {
     );
   }
 
-  const current = state.dashboard?.current;
-
   return (
     <div className="space-y-6">
       {error ? (
@@ -237,9 +364,9 @@ export function AnalyticsConsole() {
 
       <GlassCard>
         <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
-          <div>
+          <div className="space-y-4">
             <div className="text-sm uppercase tracking-[0.28em] text-white/60">History Filters</div>
-            <div className="mt-4 flex flex-wrap gap-3">
+            <div className="flex flex-wrap gap-3">
               <label className="text-sm text-white/65">
                 <span>Date From</span>
                 <input
@@ -268,8 +395,21 @@ export function AnalyticsConsole() {
                   className="mt-2 block rounded-2xl border border-white/10 bg-slate-950/25 px-4 py-3 text-white"
                 />
               </label>
+              {isMasterAdmin ? (
+                <label className="text-sm text-white/65">
+                  <span>Analytics Scope</span>
+                  <select
+                    value={scope}
+                    onChange={(event) => setScope(event.target.value as 'tenant' | 'platform')}
+                    className="mt-2 block rounded-2xl border border-white/10 bg-slate-950/25 px-4 py-3 text-white"
+                  >
+                    <option value="tenant">Tenant view</option>
+                    <option value="platform">Platform view</option>
+                  </select>
+                </label>
+              ) : null}
             </div>
-            <div className="mt-4 flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-2">
               {[7, 14, 30].map((days) => (
                 <button
                   key={days}
@@ -309,13 +449,29 @@ export function AnalyticsConsole() {
                 className="mt-2 block rounded-2xl border border-white/10 bg-slate-950/25 px-4 py-3 text-white placeholder:text-white/35"
               />
             </label>
-            <button
-              type="button"
-              onClick={() => void loadAnalytics()}
-              className="rounded-full border border-cyan-300/25 bg-cyan-300/10 px-4 py-2 text-sm text-cyan-100"
-            >
-              {loading ? 'Refreshing...' : 'Refresh Analytics'}
-            </button>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => void loadAnalytics()}
+                className="rounded-full border border-cyan-300/25 bg-cyan-300/10 px-4 py-2 text-sm text-cyan-100"
+              >
+                {loading ? 'Refreshing...' : 'Refresh'}
+              </button>
+              <button
+                type="button"
+                onClick={exportCsv}
+                className="rounded-full border border-white/12 bg-white/8 px-4 py-2 text-sm text-white/85"
+              >
+                Export CSV
+              </button>
+              <button
+                type="button"
+                onClick={exportJson}
+                className="rounded-full border border-white/12 bg-white/8 px-4 py-2 text-sm text-white/85"
+              >
+                Export JSON
+              </button>
+            </div>
           </div>
         </div>
       </GlassCard>
@@ -341,35 +497,39 @@ export function AnalyticsConsole() {
           detail={peakBucket ? `${peakBucket.total} events` : 'No event history yet'}
         />
         <StatCard
-          label="Live Tenant Users"
-          value={String(current?.activeUsers ?? 0)}
-          detail={`${current?.openRooms ?? 0} rooms | ${current?.activeCalls ?? 0} active calls`}
+          label="Change vs Prior"
+          value={`${state.usageComparison?.delta ?? 0}`}
+          detail={`${state.usageComparison?.deltaPercent ?? 0}% vs ${comparisonWindowLabel}`}
         />
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         <StatCard
+          label={activeScope === 'platform' ? 'Companies' : 'Users'}
+          value={String(activeScope === 'platform' ? platformMetrics?.companies ?? 0 : tenantMetrics?.activeUsers ?? 0)}
+          detail={
+            activeScope === 'platform'
+              ? `${platformMetrics?.activeSubscriptions ?? 0} active subscriptions`
+              : `${tenantMetrics?.openRooms ?? 0} rooms | ${tenantMetrics?.activeCalls ?? 0} calls`
+          }
+        />
+        <StatCard
           label="Messages"
-          value={String(current?.messages ?? 0)}
-          detail="Current tenant message records"
+          value={String(currentMetrics?.messages ?? 0)}
+          detail={activeScope === 'platform' ? 'Platform message records' : 'Current tenant message records'}
         />
         <StatCard
           label="Files"
-          value={String(current?.files ?? 0)}
-          detail="Files indexed in current tenant"
-        />
-        <StatCard
-          label="Latest Snapshot"
-          value={state.dashboard?.latestSnapshot?.snapshotDate ?? 'N/A'}
-          detail={state.dashboard?.subscription?.plan ?? 'unknown plan'}
+          value={String(currentMetrics?.files ?? 0)}
+          detail={latestSnapshot?.snapshotDate ?? 'No snapshot yet'}
         />
       </div>
 
       {isMasterAdmin && state.platformStats ? (
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          <StatCard label="Companies" value={String(state.platformStats.companies)} detail="Platform scope" />
-          <StatCard label="Platform Users" value={String(state.platformStats.activeUsers)} detail="Active accounts" />
-          <StatCard label="Subscriptions" value={String(state.platformStats.activeSubscriptions)} detail="Active plans" />
+          <StatCard label="Platform Users" value={String(state.platformStats.activeUsers)} detail="Global active accounts" />
+          <StatCard label="Subscriptions" value={String(state.platformStats.activeSubscriptions)} detail="Paid or trial plans" />
+          <StatCard label="Platform Messages" value={String(state.platformStats.messages)} detail="System-wide message records" />
           <StatCard
             label="Platform Snapshot"
             value={state.platformStats.latestSnapshot?.snapshotDate ?? 'N/A'}
@@ -381,7 +541,7 @@ export function AnalyticsConsole() {
       <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
         <ChartCard
           title="Event Mix"
-          subtitle="Usage-summary counts across the selected range and focus filter"
+          subtitle="Usage counts across the selected range and focus filter"
           items={topEvents.map(([label, value]) => ({
             label,
             value,
@@ -390,22 +550,40 @@ export function AnalyticsConsole() {
         />
         <ChartCard
           title="Activity Trend"
-          subtitle="Daily totals across the selected range"
+          subtitle={`Current range ${filters.dateFrom} to ${filters.dateTo}`}
           items={timelineSeries}
         />
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
+      <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
+        <ChartCard
+          title="Previous Range"
+          subtitle={comparisonWindowLabel}
+          items={previousTimelineSeries}
+        />
         <ChartCard
           title="Entity Breakdown"
           subtitle="Most active entity groups within the focused event set"
           items={entitySeries}
         />
+      </div>
+
+      <div className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
         <ChartCard
           title="Recent Event Flow"
           subtitle="Most recent activity matching the current history filters"
           items={historySeries}
         />
+        <GlassCard>
+          <div className="text-sm uppercase tracking-[0.28em] text-white/60">Comparison Notes</div>
+          <div className="mt-4 space-y-3 text-sm text-white/75">
+            <div>Scope: {activeScope === 'platform' ? 'platform-wide analytics' : 'tenant analytics'}</div>
+            <div>Focused event type: {selectedEventType === 'all' ? 'all events' : selectedEventType}</div>
+            <div>Current total: {state.usageComparison?.current.totalEvents ?? 0}</div>
+            <div>Previous total: {state.usageComparison?.previous.totalEvents ?? 0}</div>
+            <div>Delta percent: {state.usageComparison?.deltaPercent ?? 0}%</div>
+          </div>
+        </GlassCard>
       </div>
 
       <div className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
@@ -413,14 +591,12 @@ export function AnalyticsConsole() {
           <div className="flex items-center justify-between gap-4">
             <div className="text-sm uppercase tracking-[0.28em] text-white/60">Recent Event History</div>
             <div className="text-xs text-white/45">
-              {filteredRecentEvents.length} of {(state.dashboard?.recentEvents ?? []).length} events
+              {filteredRecentEvents.length} of {recentEvents.length} events
             </div>
           </div>
           <div className="mt-4 space-y-3">
             {filteredRecentEvents.length ? (
-              filteredRecentEvents.map((event) => (
-                <HistoryRow key={event.id} event={event} />
-              ))
+              filteredRecentEvents.map((event) => <HistoryRow key={event.id} event={event} />)
             ) : (
               <div className="text-sm text-white/65">
                 {loading ? 'Loading events...' : 'No events match the current history filter.'}
@@ -430,19 +606,23 @@ export function AnalyticsConsole() {
         </GlassCard>
 
         <GlassCard>
-          <div className="text-sm uppercase tracking-[0.28em] text-white/60">Summary Notes</div>
+          <div className="text-sm uppercase tracking-[0.28em] text-white/60">
+            {activeScope === 'platform' ? 'Master View Notes' : 'Tenant View Notes'}
+          </div>
           <div className="mt-4 space-y-3 text-sm text-white/75">
             <div>Top event: {topEvents[0] ? `${topEvents[0][0]} (${topEvents[0][1]})` : 'No usage data yet'}</div>
-            <div>Focused event type: {selectedEventType === 'all' ? 'all events' : selectedEventType}</div>
-            <div>Current plan: {state.dashboard?.subscription?.plan ?? 'unknown'}</div>
-            <div>Latest snapshot: {state.dashboard?.latestSnapshot?.snapshotDate ?? 'not generated yet'}</div>
+            <div>Latest snapshot: {latestSnapshot?.snapshotDate ?? 'not generated yet'}</div>
             <div>Recent events shown: {filteredRecentEvents.length}</div>
-            <div>
-              Need more message-level detail?{' '}
-              <Link href={chatRoute} className="text-cyan-200 underline decoration-cyan-200/35 underline-offset-4">
-                Open chat workspace
-              </Link>
-            </div>
+            {activeScope === 'tenant' ? (
+              <div>
+                Need more message-level detail?{' '}
+                <Link href={chatRoute} className="text-cyan-200 underline decoration-cyan-200/35 underline-offset-4">
+                  Open chat workspace
+                </Link>
+              </div>
+            ) : (
+              <div>Platform mode blends activity across all companies for master-admin review.</div>
+            )}
           </div>
         </GlassCard>
       </div>
@@ -498,7 +678,9 @@ function HistoryRow({ event }: { event: UsageEventRecord }) {
         <div className="text-xs text-white/55">{new Date(event.occurredAt).toLocaleString()}</div>
       </div>
       <div className="mt-2 text-sm text-white/60">
-        {event.entityType ?? 'event'} {event.entityId ? `| ${event.entityId}` : ''}
+        {event.entityType ?? 'event'}
+        {event.entityId ? ` | ${event.entityId}` : ''}
+        {event.companyId ? ` | company ${event.companyId.slice(0, 8)}` : ''}
       </div>
     </div>
   );

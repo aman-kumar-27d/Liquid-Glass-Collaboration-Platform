@@ -8,6 +8,7 @@ import { CreateCouponDto } from '../coupons/coupons.dto';
 import { RedeemCode } from '../redeem/redeem-code.entity';
 import { CreateRedeemCodeDto } from '../redeem/redeem.dto';
 import { Subscription } from '../subscription/subscription.entity';
+import { UsageSummaryQueryDto } from '../analytics/analytics.dto';
 
 @Injectable()
 export class MasterService {
@@ -89,5 +90,17 @@ export class MasterService {
 
   async getSystemStats() {
     return this.analyticsService.getPlatformStats();
+  }
+
+  async getAnalyticsDashboard() {
+    return this.analyticsService.getPlatformDashboard();
+  }
+
+  async getAnalyticsUsageSummary(query: UsageSummaryQueryDto) {
+    return this.analyticsService.getPlatformUsageSummary(query);
+  }
+
+  async getAnalyticsUsageComparison(query: UsageSummaryQueryDto) {
+    return this.analyticsService.getPlatformUsageComparison(query);
   }
 }

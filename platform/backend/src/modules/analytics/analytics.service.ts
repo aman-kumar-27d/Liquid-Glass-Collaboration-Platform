@@ -24,6 +24,20 @@ export interface TimelineBucket {
   counts: Record<string, number>;
 }
 
+export interface UsageSummaryData {
+  dateFrom: string;
+  dateTo: string;
+  eventType: string | null;
+  eventTypes: string[];
+  counts: Record<string, number>;
+  totalEvents: number;
+  timeline: TimelineBucket[];
+  entityBreakdown: Array<{
+    label: string;
+    total: number;
+  }>;
+}
+
 @Injectable()
 export class AnalyticsService {
   constructor(
@@ -115,54 +129,80 @@ export class AnalyticsService {
   }
 
   async getUsageSummary(actor: AnalyticsActor, query: UsageSummaryQueryDto) {
-    const now = new Date();
-    const start = query.dateFrom
-      ? toStartOfDay(query.dateFrom)
-      : new Date(now.getFullYear(), now.getMonth(), now.getDate() - 7);
-    const end = query.dateTo ? toEndOfDay(query.dateTo) : now;
+    const data = await this.buildUsageSummary(actor.companyId, query);
 
-    const events = await this.usageEventsRepository.find({
-      where: {
-        companyId: actor.companyId,
-        occurredAt: Between(start, end)
-      },
-      order: { occurredAt: 'ASC' }
-    });
+    return {
+      success: true,
+      data,
+      error: null,
+      meta: null
+    };
+  }
 
-    const filteredEvents = query.eventType
-      ? events.filter((event) => event.eventType === query.eventType)
-      : events;
+  async getPlatformUsageSummary(query: UsageSummaryQueryDto) {
+    const data = await this.buildUsageSummary(null, query);
 
-    const counts = filteredEvents.reduce<Record<string, number>>((accumulator, event) => {
-      accumulator[event.eventType] = (accumulator[event.eventType] ?? 0) + 1;
-      return accumulator;
-    }, {});
+    return {
+      success: true,
+      data,
+      error: null,
+      meta: null
+    };
+  }
 
-    const eventTypes = Array.from(new Set(events.map((event) => event.eventType))).sort();
-    const timeline = buildTimelineBuckets(filteredEvents, start, end);
-    const entityBreakdown = Object.entries(
-      filteredEvents.reduce<Record<string, number>>((accumulator, event) => {
-        const label = event.entityType ?? 'event';
-        accumulator[label] = (accumulator[label] ?? 0) + 1;
-        return accumulator;
-      }, {})
-    )
-      .sort((left, right) => right[1] - left[1])
-      .slice(0, 6)
-      .map(([label, total]) => ({ label, total }));
+  async getPlatformDashboard() {
+    const [companies, users, messages, files, activeSubscriptions, latestSnapshot, recentEvents] =
+      await Promise.all([
+        this.companiesRepository.count(),
+        this.usersRepository.count({ where: { isActive: true } }),
+        this.messagesRepository.count({ where: { deletedAt: IsNull() } }),
+        this.filesRepository.count({ where: { deletedAt: IsNull() } }),
+        this.subscriptionsRepository.count({ where: { isActive: true } }),
+        this.snapshotsRepository.findOne({
+          where: { scope: 'platform', companyId: IsNull() },
+          order: { snapshotDate: 'DESC' }
+        }),
+        this.usageEventsRepository.find({
+          order: { occurredAt: 'DESC' },
+          take: 12
+        })
+      ]);
 
     return {
       success: true,
       data: {
-        dateFrom: start.toISOString(),
-        dateTo: end.toISOString(),
-        eventType: query.eventType ?? null,
-        eventTypes,
-        counts,
-        totalEvents: filteredEvents.length,
-        timeline,
-        entityBreakdown
+        current: {
+          companies,
+          activeUsers: users,
+          messages,
+          files,
+          activeSubscriptions
+        },
+        latestSnapshot,
+        recentEvents
       },
+      error: null,
+      meta: null
+    };
+  }
+
+  async getUsageComparison(actor: AnalyticsActor, query: UsageSummaryQueryDto) {
+    const data = await this.buildUsageComparison(actor.companyId, query);
+
+    return {
+      success: true,
+      data,
+      error: null,
+      meta: null
+    };
+  }
+
+  async getPlatformUsageComparison(query: UsageSummaryQueryDto) {
+    const data = await this.buildUsageComparison(null, query);
+
+    return {
+      success: true,
+      data,
       error: null,
       meta: null
     };
@@ -193,6 +233,83 @@ export class AnalyticsService {
       },
       error: null,
       meta: null
+    };
+  }
+
+  private async buildUsageSummary(companyId: string | null, query: UsageSummaryQueryDto): Promise<UsageSummaryData> {
+    const now = new Date();
+    const start = query.dateFrom
+      ? toStartOfDay(query.dateFrom)
+      : new Date(now.getFullYear(), now.getMonth(), now.getDate() - 7);
+    const end = query.dateTo ? toEndOfDay(query.dateTo) : now;
+
+    const events = await this.usageEventsRepository.find(buildEventFindOptions(companyId, start, end));
+
+    const filteredEvents = query.eventType
+      ? events.filter((event) => event.eventType === query.eventType)
+      : events;
+
+    const counts = filteredEvents.reduce<Record<string, number>>((accumulator, event) => {
+      accumulator[event.eventType] = (accumulator[event.eventType] ?? 0) + 1;
+      return accumulator;
+    }, {});
+
+    const eventTypes = Array.from(new Set(events.map((event) => event.eventType))).sort();
+    const timeline = buildTimelineBuckets(filteredEvents, start, end);
+    const entityBreakdown = Object.entries(
+      filteredEvents.reduce<Record<string, number>>((accumulator, event) => {
+        const label = event.entityType ?? 'event';
+        accumulator[label] = (accumulator[label] ?? 0) + 1;
+        return accumulator;
+      }, {})
+    )
+      .sort((left, right) => right[1] - left[1])
+      .slice(0, 6)
+      .map(([label, total]) => ({ label, total }));
+
+    return {
+      dateFrom: start.toISOString(),
+      dateTo: end.toISOString(),
+      eventType: query.eventType ?? null,
+      eventTypes,
+      counts,
+      totalEvents: filteredEvents.length,
+      timeline,
+      entityBreakdown
+    };
+  }
+
+  private async buildUsageComparison(companyId: string | null, query: UsageSummaryQueryDto) {
+    const now = new Date();
+    const currentStart = query.dateFrom
+      ? toStartOfDay(query.dateFrom)
+      : new Date(now.getFullYear(), now.getMonth(), now.getDate() - 7);
+    const currentEnd = query.dateTo ? toEndOfDay(query.dateTo) : now;
+    const periodMs = Math.max(currentEnd.getTime() - currentStart.getTime(), 24 * 60 * 60 * 1000);
+    const previousEnd = new Date(currentStart.getTime() - 1);
+    const previousStart = new Date(previousEnd.getTime() - periodMs);
+
+    const [current, previous] = await Promise.all([
+      this.buildUsageSummary(companyId, query),
+      this.buildUsageSummary(companyId, {
+        dateFrom: previousStart.toISOString(),
+        dateTo: previousEnd.toISOString(),
+        eventType: query.eventType
+      })
+    ]);
+
+    const delta = current.totalEvents - previous.totalEvents;
+    const deltaPercent = previous.totalEvents
+      ? Number((((current.totalEvents - previous.totalEvents) / previous.totalEvents) * 100).toFixed(2))
+      : current.totalEvents > 0
+        ? 100
+        : 0;
+
+    return {
+      current,
+      previous,
+      delta,
+      deltaPercent
     };
   }
 
@@ -238,6 +355,20 @@ export class AnalyticsService {
 
     return this.snapshotsRepository.save(snapshot);
   }
+}
+
+function buildEventFindOptions(companyId: string | null, start: Date, end: Date) {
+  return {
+    where: companyId
+      ? {
+          companyId,
+          occurredAt: Between(start, end)
+        }
+      : {
+          occurredAt: Between(start, end)
+        },
+    order: { occurredAt: 'ASC' as const }
+  };
 }
 
 function toStartOfDay(value: string) {

@@ -194,3 +194,22 @@ export interface UsageSummaryRecord {
     total: number;
   }>;
 }
+
+export interface UsageComparisonRecord {
+  current: UsageSummaryRecord;
+  previous: UsageSummaryRecord;
+  delta: number;
+  deltaPercent: number;
+}
+
+export interface PlatformAnalyticsDashboardRecord {
+  current: {
+    companies: number;
+    activeUsers: number;
+    messages: number;
+    files: number;
+    activeSubscriptions: number;
+  };
+  latestSnapshot: AnalyticsSnapshotRecord | null;
+  recentEvents: UsageEventRecord[];
+}

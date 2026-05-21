@@ -11,7 +11,7 @@ export default function WorkspaceAnalyticsPage() {
           <PageHeader
             eyebrow="Analytics"
             title="Tenant and platform activity view"
-            description="This workspace surfaces analytics dashboard metrics, usage-history filters, event charts, and recent activity from the analytics endpoints."
+            description="This workspace now supports analytics comparison ranges, export-ready reports, richer chart breakdowns, and a dedicated platform view for master admins."
           />
         </GlassCard>
 
