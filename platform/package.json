@@ -9,7 +9,8 @@
     "dev:frontend": "pnpm --filter frontend dev",
     "build:frontend": "pnpm --filter frontend build",
     "dev:mobile": "pnpm --filter mobile start",
-    "react-doctor": "pnpm --filter mobile doctor",
+    "react-doctor": "pnpm --filter mobile run doctor",
+    "expo-doctor": "pnpm --filter mobile exec expo-doctor .",
     "lint": "pnpm -r --if-present lint",
     "test": "pnpm -r --if-present test"
   }

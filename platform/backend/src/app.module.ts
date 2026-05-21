@@ -63,7 +63,7 @@ function createDatabaseOptions() {
   if (databaseType === 'sqljs') {
     const location = path.resolve(
       process.cwd(),
-      process.env.DATABASE_SQLJS_LOCATION ?? './backend/.data/dev.sqlite'
+      process.env.DATABASE_SQLJS_LOCATION ?? './.data/dev.sqlite'
     );
     const dataDirectory = path.dirname(location);
 

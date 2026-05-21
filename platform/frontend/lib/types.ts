@@ -180,6 +180,17 @@ export interface AnalyticsDashboardRecord {
 export interface UsageSummaryRecord {
   dateFrom: string;
   dateTo: string;
+  eventType: string | null;
+  eventTypes: string[];
   counts: Record<string, number>;
   totalEvents: number;
+  timeline: Array<{
+    bucket: string;
+    total: number;
+    counts: Record<string, number>;
+  }>;
+  entityBreakdown: Array<{
+    label: string;
+    total: number;
+  }>;
 }

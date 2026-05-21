@@ -53,6 +53,7 @@ export function AnalyticsConsole() {
   const [error, setError] = useState<string | null>(null);
   const [filters, setFilters] = useState(defaultDateRange());
   const [historyFilter, setHistoryFilter] = useState('');
+  const [selectedEventType, setSelectedEventType] = useState('all');
   const [state, setState] = useState<AnalyticsState>({
     dashboard: null,
     platformStats: null,
@@ -77,8 +78,17 @@ export function AnalyticsConsole() {
         session,
         onSessionChange: setSession
       });
+      const summaryQuery = new URLSearchParams({
+        dateFrom: filters.dateFrom,
+        dateTo: filters.dateTo
+      });
+
+      if (selectedEventType !== 'all') {
+        summaryQuery.set('eventType', selectedEventType);
+      }
+
       const summaryRequest = apiRequest<UsageSummaryRecord>(
-        `/analytics/usage-summary?dateFrom=${encodeURIComponent(filters.dateFrom)}&dateTo=${encodeURIComponent(filters.dateTo)}`,
+        `/analytics/usage-summary?${summaryQuery.toString()}`,
         {
           requiresAuth: true,
           session,
@@ -119,17 +129,21 @@ export function AnalyticsConsole() {
     }
 
     void loadAnalytics();
-  }, [ready, session, filters, loadAnalytics]);
+  }, [ready, session, filters, selectedEventType, loadAnalytics]);
 
   const filteredRecentEvents = useMemo(() => {
     const query = deferredHistoryFilter.trim().toLowerCase();
     const events = state.dashboard?.recentEvents ?? [];
+    const focusedEvents =
+      selectedEventType === 'all'
+        ? events
+        : events.filter((event) => event.eventType === selectedEventType);
 
     if (!query) {
-      return events;
+      return focusedEvents;
     }
 
-    return events.filter((event) => {
+    return focusedEvents.filter((event) => {
       const haystack = [
         event.eventType,
         event.entityType ?? '',
@@ -157,6 +171,43 @@ export function AnalyticsConsole() {
     const counts = Object.entries(state.usageSummary?.counts ?? {});
     return counts.sort((left, right) => right[1] - left[1]).slice(0, 6);
   }, [state.usageSummary?.counts]);
+
+  const timelineSeries = useMemo(() => {
+    return (state.usageSummary?.timeline ?? []).map((bucket) => ({
+      label: bucket.bucket.slice(5),
+      value: bucket.total,
+      description: `${bucket.total} events`
+    }));
+  }, [state.usageSummary?.timeline]);
+
+  const entitySeries = useMemo(() => {
+    return (state.usageSummary?.entityBreakdown ?? []).map((entry) => ({
+      label: entry.label,
+      value: entry.total,
+      description: `${entry.total} events`
+    }));
+  }, [state.usageSummary?.entityBreakdown]);
+
+  const peakBucket = useMemo(() => {
+    const timeline = state.usageSummary?.timeline ?? [];
+    return timeline.reduce<(typeof timeline)[number] | null>((currentPeak, bucket) => {
+      if (!currentPeak || bucket.total > currentPeak.total) {
+        return bucket;
+      }
+
+      return currentPeak;
+    }, null);
+  }, [state.usageSummary?.timeline]);
+
+  const averagePerDay = useMemo(() => {
+    const timeline = state.usageSummary?.timeline ?? [];
+
+    if (!timeline.length) {
+      return '0';
+    }
+
+    return (Number(state.usageSummary?.totalEvents ?? 0) / timeline.length).toFixed(1);
+  }, [state.usageSummary?.timeline, state.usageSummary?.totalEvents]);
 
   if (!ready) {
     return (
@@ -234,6 +285,21 @@ export function AnalyticsConsole() {
 
           <div className="flex flex-col gap-3 xl:items-end">
             <label className="text-sm text-white/65">
+              <span>Focus event type</span>
+              <select
+                value={selectedEventType}
+                onChange={(event) => setSelectedEventType(event.target.value)}
+                className="mt-2 block rounded-2xl border border-white/10 bg-slate-950/25 px-4 py-3 text-white"
+              >
+                <option value="all">All event types</option>
+                {(state.usageSummary?.eventTypes ?? []).map((eventType) => (
+                  <option key={eventType} value={eventType}>
+                    {eventType}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="text-sm text-white/65">
               <span>Filter event history</span>
               <input
                 type="text"
@@ -258,22 +324,44 @@ export function AnalyticsConsole() {
         <StatCard
           label="Tracked Events"
           value={String(state.usageSummary?.totalEvents ?? 0)}
-          detail={`${filters.dateFrom} to ${filters.dateTo}`}
+          detail={
+            selectedEventType === 'all'
+              ? `${filters.dateFrom} to ${filters.dateTo}`
+              : `${selectedEventType} in selected range`
+          }
         />
+        <StatCard
+          label="Average / Day"
+          value={averagePerDay}
+          detail={`${state.usageSummary?.timeline.length ?? 0} timeline buckets`}
+        />
+        <StatCard
+          label="Peak Day"
+          value={peakBucket?.bucket ?? 'N/A'}
+          detail={peakBucket ? `${peakBucket.total} events` : 'No event history yet'}
+        />
+        <StatCard
+          label="Live Tenant Users"
+          value={String(current?.activeUsers ?? 0)}
+          detail={`${current?.openRooms ?? 0} rooms | ${current?.activeCalls ?? 0} active calls`}
+        />
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         <StatCard
           label="Messages"
           value={String(current?.messages ?? 0)}
-          detail={`${current?.openRooms ?? 0} open rooms`}
+          detail="Current tenant message records"
         />
         <StatCard
           label="Files"
           value={String(current?.files ?? 0)}
-          detail={`${current?.activeCalls ?? 0} active calls`}
+          detail="Files indexed in current tenant"
         />
         <StatCard
-          label="Users"
-          value={String(current?.activeUsers ?? 0)}
-          detail={state.dashboard?.latestSnapshot?.snapshotDate ?? 'No snapshot yet'}
+          label="Latest Snapshot"
+          value={state.dashboard?.latestSnapshot?.snapshotDate ?? 'N/A'}
+          detail={state.dashboard?.subscription?.plan ?? 'unknown plan'}
         />
       </div>
 
@@ -293,7 +381,7 @@ export function AnalyticsConsole() {
       <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
         <ChartCard
           title="Event Mix"
-          subtitle="Usage-summary counts across the selected date range"
+          subtitle="Usage-summary counts across the selected range and focus filter"
           items={topEvents.map(([label, value]) => ({
             label,
             value,
@@ -301,8 +389,21 @@ export function AnalyticsConsole() {
           }))}
         />
         <ChartCard
+          title="Activity Trend"
+          subtitle="Daily totals across the selected range"
+          items={timelineSeries}
+        />
+      </div>
+
+      <div className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
+        <ChartCard
+          title="Entity Breakdown"
+          subtitle="Most active entity groups within the focused event set"
+          items={entitySeries}
+        />
+        <ChartCard
           title="Recent Event Flow"
-          subtitle="Latest tenant activity from the dashboard analytics stream"
+          subtitle="Most recent activity matching the current history filters"
           items={historySeries}
         />
       </div>
@@ -332,6 +433,7 @@ export function AnalyticsConsole() {
           <div className="text-sm uppercase tracking-[0.28em] text-white/60">Summary Notes</div>
           <div className="mt-4 space-y-3 text-sm text-white/75">
             <div>Top event: {topEvents[0] ? `${topEvents[0][0]} (${topEvents[0][1]})` : 'No usage data yet'}</div>
+            <div>Focused event type: {selectedEventType === 'all' ? 'all events' : selectedEventType}</div>
             <div>Current plan: {state.dashboard?.subscription?.plan ?? 'unknown'}</div>
             <div>Latest snapshot: {state.dashboard?.latestSnapshot?.snapshotDate ?? 'not generated yet'}</div>
             <div>Recent events shown: {filteredRecentEvents.length}</div>

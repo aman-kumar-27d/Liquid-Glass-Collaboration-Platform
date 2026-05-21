@@ -6,6 +6,6 @@ export default () => ({
     name: process.env.DATABASE_NAME ?? 'liquid_glass',
     user: process.env.DATABASE_USER ?? 'postgres',
     password: process.env.DATABASE_PASSWORD ?? 'postgres',
-    sqljsLocation: process.env.DATABASE_SQLJS_LOCATION ?? './backend/.data/dev.sqlite'
+    sqljsLocation: process.env.DATABASE_SQLJS_LOCATION ?? './.data/dev.sqlite'
   }
 });

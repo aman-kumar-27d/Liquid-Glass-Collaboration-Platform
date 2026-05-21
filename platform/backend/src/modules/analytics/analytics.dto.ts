@@ -1,4 +1,4 @@
-import { IsDateString, IsOptional } from 'class-validator';
+import { IsDateString, IsOptional, IsString } from 'class-validator';
 
 export class UsageSummaryQueryDto {
   @IsOptional()
@@ -8,4 +8,8 @@ export class UsageSummaryQueryDto {
   @IsOptional()
   @IsDateString()
   dateTo?: string;
+
+  @IsOptional()
+  @IsString()
+  eventType?: string;
 }

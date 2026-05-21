@@ -14,8 +14,8 @@ export class UsageEvent extends BaseEntity {
   @Column({ name: 'event_type', length: 64 })
   eventType!: string;
 
-  @Column({ name: 'entity_type', length: 64, nullable: true })
-  entityType?: string | null;
+  @Column({ name: 'entity_type', type: 'varchar', length: 64, nullable: true })
+  entityType!: string;
 
   @Column({ name: 'entity_id', type: 'uuid', nullable: true })
   entityId?: string | null;

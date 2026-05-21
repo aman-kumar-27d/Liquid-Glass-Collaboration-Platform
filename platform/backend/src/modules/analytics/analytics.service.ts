@@ -18,6 +18,12 @@ interface AnalyticsActor {
   sub: string;
 }
 
+export interface TimelineBucket {
+  bucket: string;
+  total: number;
+  counts: Record<string, number>;
+}
+
 @Injectable()
 export class AnalyticsService {
   constructor(
@@ -54,7 +60,7 @@ export class AnalyticsService {
       companyId: input.companyId ?? null,
       userId: input.userId ?? null,
       eventType: input.eventType,
-      entityType: input.entityType ?? null,
+      entityType: input.entityType ?? undefined,
       entityId: input.entityId ?? null,
       metadata: input.metadata ?? null,
       occurredAt: input.occurredAt ?? new Date()
@@ -110,8 +116,10 @@ export class AnalyticsService {
 
   async getUsageSummary(actor: AnalyticsActor, query: UsageSummaryQueryDto) {
     const now = new Date();
-    const start = query.dateFrom ? new Date(query.dateFrom) : new Date(now.getFullYear(), now.getMonth(), now.getDate() - 7);
-    const end = query.dateTo ? new Date(query.dateTo) : now;
+    const start = query.dateFrom
+      ? toStartOfDay(query.dateFrom)
+      : new Date(now.getFullYear(), now.getMonth(), now.getDate() - 7);
+    const end = query.dateTo ? toEndOfDay(query.dateTo) : now;
 
     const events = await this.usageEventsRepository.find({
       where: {
@@ -121,18 +129,39 @@ export class AnalyticsService {
       order: { occurredAt: 'ASC' }
     });
 
-    const counts = events.reduce<Record<string, number>>((accumulator, event) => {
+    const filteredEvents = query.eventType
+      ? events.filter((event) => event.eventType === query.eventType)
+      : events;
+
+    const counts = filteredEvents.reduce<Record<string, number>>((accumulator, event) => {
       accumulator[event.eventType] = (accumulator[event.eventType] ?? 0) + 1;
       return accumulator;
     }, {});
+
+    const eventTypes = Array.from(new Set(events.map((event) => event.eventType))).sort();
+    const timeline = buildTimelineBuckets(filteredEvents, start, end);
+    const entityBreakdown = Object.entries(
+      filteredEvents.reduce<Record<string, number>>((accumulator, event) => {
+        const label = event.entityType ?? 'event';
+        accumulator[label] = (accumulator[label] ?? 0) + 1;
+        return accumulator;
+      }, {})
+    )
+      .sort((left, right) => right[1] - left[1])
+      .slice(0, 6)
+      .map(([label, total]) => ({ label, total }));
 
     return {
       success: true,
       data: {
         dateFrom: start.toISOString(),
         dateTo: end.toISOString(),
+        eventType: query.eventType ?? null,
+        eventTypes,
         counts,
-        totalEvents: events.length
+        totalEvents: filteredEvents.length,
+        timeline,
+        entityBreakdown
       },
       error: null,
       meta: null
@@ -209,4 +238,46 @@ export class AnalyticsService {
 
     return this.snapshotsRepository.save(snapshot);
   }
+}
+
+function toStartOfDay(value: string) {
+  const date = new Date(value);
+  date.setHours(0, 0, 0, 0);
+  return date;
+}
+
+function toEndOfDay(value: string) {
+  const date = new Date(value);
+  date.setHours(23, 59, 59, 999);
+  return date;
+}
+
+function buildTimelineBuckets(events: UsageEvent[], start: Date, end: Date): TimelineBucket[] {
+  const buckets = new Map<string, TimelineBucket>();
+  const cursor = new Date(start);
+  cursor.setHours(0, 0, 0, 0);
+
+  while (cursor <= end) {
+    const key = cursor.toISOString().slice(0, 10);
+    buckets.set(key, {
+      bucket: key,
+      total: 0,
+      counts: {}
+    });
+    cursor.setDate(cursor.getDate() + 1);
+  }
+
+  for (const event of events) {
+    const key = event.occurredAt.toISOString().slice(0, 10);
+    const bucket = buckets.get(key);
+
+    if (!bucket) {
+      continue;
+    }
+
+    bucket.total += 1;
+    bucket.counts[event.eventType] = (bucket.counts[event.eventType] ?? 0) + 1;
+  }
+
+  return Array.from(buckets.values());
 }
