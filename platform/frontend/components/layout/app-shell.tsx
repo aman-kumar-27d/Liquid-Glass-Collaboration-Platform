@@ -10,6 +10,7 @@ import { GlassCard } from '../liquid-glass/glass-card';
 const navItems = [
   { href: '/auth' as Route, label: 'Auth' },
   { href: '/workspace' as Route, label: 'Dashboard' },
+  { href: '/workspace/analytics' as Route, label: 'Analytics' },
   { href: '/workspace/chat' as Route, label: 'Chat' },
   { href: '/workspace/calls' as Route, label: 'Calls' },
   { href: '/workspace/admin' as Route, label: 'Admin' },

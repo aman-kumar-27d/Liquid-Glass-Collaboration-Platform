@@ -2,18 +2,15 @@
   "name": "liquid-glass-collaboration-platform",
   "private": true,
   "version": "0.1.0",
-  "workspaces": [
-    "backend",
-    "frontend",
-    "mobile"
-  ],
+  "packageManager": "pnpm@10.33.2",
   "scripts": {
-    "dev:backend": "npm run start:dev --workspace backend",
-    "build:backend": "npm run build --workspace backend",
-    "dev:frontend": "npm run dev --workspace frontend",
-    "build:frontend": "npm run build --workspace frontend",
-    "dev:mobile": "npm run start --workspace mobile",
-    "lint": "npm run lint --workspaces --if-present",
-    "test": "npm run test --workspaces --if-present"
+    "dev:backend": "pnpm --filter backend start:dev",
+    "build:backend": "pnpm --filter backend build",
+    "dev:frontend": "pnpm --filter frontend dev",
+    "build:frontend": "pnpm --filter frontend build",
+    "dev:mobile": "pnpm --filter mobile start",
+    "react-doctor": "pnpm --filter mobile doctor",
+    "lint": "pnpm -r --if-present lint",
+    "test": "pnpm -r --if-present test"
   }
 }

@@ -6,6 +6,7 @@
     "start": "expo start",
     "android": "expo run:android",
     "ios": "expo run:ios",
+    "doctor": "react-native doctor",
     "lint": "tsc --noEmit"
   },
   "dependencies": {
@@ -15,6 +16,7 @@
     "react-native": "^0.83.4"
   },
   "devDependencies": {
+    "@react-native-community/cli-doctor": "^20.0.1",
     "@types/react": "^19.2.14",
     "typescript": "^5.9.2"
   }
